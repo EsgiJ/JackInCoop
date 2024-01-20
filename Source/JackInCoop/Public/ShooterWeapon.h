@@ -18,8 +18,6 @@ public:
 	AShooterWeapon();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* MeshComponent;
@@ -33,6 +31,9 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName TracerBeamEndName;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	TSubclassOf<UCameraShakeBase> FireCameraShake;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
 	UParticleSystem* ImpactEffect;
 	
@@ -41,11 +42,14 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
 	UParticleSystem* TracerEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* RifleFireSound;
 	
+public:	
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	virtual void Fire();
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+
+	void PlayFireEffects(FVector TracerEndPoint);
 
 };

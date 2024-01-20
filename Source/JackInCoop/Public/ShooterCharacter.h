@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "ShooterCharacter.generated.h"
 
+class AShooterWeapon;
 class USpringArmComponent;
 class UCameraComponent;
 
@@ -27,12 +28,36 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* CrouchAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* ZoomAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* FireAction;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* CameraComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USpringArmComponent* SpringArmComponent;
+
+	UPROPERTY(EditDefaultsOnly, Category="Camera")
+	float ZoomedFOV;
+	
+	float DefaultFOV;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Camera", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
+	float ZoomInterpSpeed;
+	
+	bool bWantsToZoom;
+
+	AShooterWeapon* CurrentWeapon;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+	TSubclassOf<AShooterWeapon>StarterWeaponClass;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName WeaponAttachSocketName;
 	
 public:
 	// Sets default values for this character's properties
@@ -46,6 +71,9 @@ protected:
 	void Look(const FInputActionValue& Value);
 	void BeginCrouch(const FInputActionValue& Value);
 	void EndCrouch(const FInputActionValue& Value);
+	void BeginZoom(const FInputActionValue& Value);
+	void EndZoom(const FInputActionValue& Value);
+	void Fire(const FInputActionValue& Value);
 
 public:	
 	// Called every frame
