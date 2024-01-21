@@ -8,6 +8,47 @@
 
 class USkeletalMeshComponent;
 
+namespace EWeaponState
+{
+	enum Type
+	{
+		Idle,
+		Firing,
+		Reloading,
+		Equipping
+	};
+}
+
+USTRUCT()
+struct FWeaponData
+{
+	GENERATED_BODY()
+	/* max ammo */
+	UPROPERTY(EditDefaultsOnly, Category = "Ammo")
+	int32 MaxAmmo;
+
+	/* clip size */
+	UPROPERTY(EditDefaultsOnly, Category = "Ammo")
+	int32 AmmoPerClip;
+	/* initial clips */
+	UPROPERTY(EditDefaultsOnly, Category = "Ammo")
+	int32 InitialClips;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
+	float RateOfFire;
+
+	// Derived from RateOfFire
+	float TimeBetweenShots;
+
+	FWeaponData()
+	{
+		MaxAmmo = 100;
+		AmmoPerClip = 20;
+		InitialClips = 4;
+		RateOfFire = 300;
+		TimeBetweenShots = 60 / RateOfFire;
+	}
+};
 UCLASS()
 class JACKINCOOP_API AShooterWeapon : public AActor
 {
@@ -17,9 +58,33 @@ public:
 	// Sets default values for this actor's properties
 	AShooterWeapon();
 
+	virtual void PostInitializeComponents() override;
+	
+	void StartFire();
+	
+	void StopFire();
+
+	void ReloadWeapon();
+
+	void StartReload();
+
+	void StopReload();
+
+	bool CanReload();
+	
+	void PlayFireEffects(FVector TracerEndPoint);
+
+	/** get pawn owner */
+	UFUNCTION(BlueprintCallable, Category="Game|Weapon")
+	class AShooterCharacter* GetPawnOwner() const;
+
+	/** set the weapon's owning pawn */
+	void SetOwningPawn(AShooterCharacter* AShooterCharacter);
+
 protected:
 
 	virtual void BeginPlay() override;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* MeshComponent;
 
@@ -53,25 +118,44 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* RifleFireSound;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* ReloadSound;
+	
 	FTimerHandle TimerHandle_TimeBetweenShots;
 
+	/** Handle for efficient management of ReloadWeapon timer */
+	FTimerHandle TimerHandle_ReloadWeapon;
+
+	/** Handle for efficient management of StopReload timer */
+	FTimerHandle TimerHandle_StopReload;
+
 	float LastFireTime;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
-	float RateOfFire;
-
-	// Derived from RateOfFire
-	float TimeBetweenShots;
 	
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	virtual void Fire();
-	
-public:	
 
-	void StartFire();
-	
-	void StopFire();
-	
-	void PlayFireEffects(FVector TracerEndPoint);
+	/* reload animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ReloadAnim;
 
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FireAnim;
+
+	/* current total ammo */
+	int32 CurrentAmmo;
+	/* current ammo inside clip */
+	int32 CurrentAmmoInClip;
+
+	/* current weapon state*/
+	EWeaponState::Type CurrentState;
+	
+	/* weapon data */
+	UPROPERTY(EditDefaultsOnly, Category = "Config")
+	FWeaponData WeaponConfig;
+
+	/* pawn owner */
+	UPROPERTY()
+	class AShooterCharacter* MyPawn;
 };
+

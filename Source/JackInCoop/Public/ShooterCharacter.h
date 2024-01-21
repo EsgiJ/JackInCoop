@@ -7,9 +7,12 @@
 #include "InputActionValue.h"
 #include "ShooterCharacter.generated.h"
 
+class UInputAction;
 class AShooterWeapon;
 class USpringArmComponent;
 class UCameraComponent;
+class UInputComponent;
+class UInputMappingContext;
 
 UCLASS()
 class JACKINCOOP_API AShooterCharacter : public ACharacter
@@ -18,22 +21,25 @@ class JACKINCOOP_API AShooterCharacter : public ACharacter
 protected:	
 	/* Mapping Context*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputMappingContext* ShooterMappingContext;
+	UInputMappingContext* ShooterMappingContext;
 	/* Move Input Action*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* MoveAction;
+	UInputAction* MoveAction;
 	/* Look Input Action*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* LookAction;
+	UInputAction* LookAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* CrouchAction;
+	UInputAction* CrouchAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* ZoomAction;
+	UInputAction* ZoomAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* FireAction;
+	UInputAction* FireAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ReloadAction;
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* CameraComponent;
@@ -80,6 +86,7 @@ protected:
 	void StartFire(const FInputActionValue& Value);
 	void StopFire(const FInputActionValue& Value);
 
+	void Reload(const FInputActionValue& Value);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

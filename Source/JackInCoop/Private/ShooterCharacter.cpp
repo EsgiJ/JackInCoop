@@ -50,7 +50,7 @@ void AShooterCharacter::BeginPlay()
 	CurrentWeapon = GetWorld()->SpawnActor<AShooterWeapon>(StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
 	if (CurrentWeapon)
 	{
-		CurrentWeapon->SetOwner(this);
+		CurrentWeapon->SetOwningPawn(this);
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponAttachSocketName);
 	}
 }
@@ -83,6 +83,8 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AShooterCharacter::StartFire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AShooterCharacter::StopFire);
+
+		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &AShooterCharacter::Reload);
 	}
 }
 
@@ -157,5 +159,10 @@ void AShooterCharacter::StopFire(const FInputActionValue& Value)
 	{
 		CurrentWeapon->StopFire();
 	}
+}
+
+void AShooterCharacter::Reload(const FInputActionValue& Value)
+{
+	CurrentWeapon->StartReload();
 }
 

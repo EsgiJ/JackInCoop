@@ -3,6 +3,7 @@
 
 #include "ShooterWeapon.h"
 #include "DrawDebugHelpers.h"
+#include "ShooterCharacter.h"
 #include "JackInCoop/JackInCoop.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -21,39 +22,52 @@ AShooterWeapon::AShooterWeapon()
 {
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeshComponent"));
 	RootComponent = MeshComponent;
-
+	
 	MuzzleSocketName = "MuzzleSocket";
 	TracerBeamEndName = "BeamEnd";
 
 	BaseDamage = 20.0f;
 
-	//RPM, bullets per minute
-	RateOfFire = 600.0f;
+	CurrentState = EWeaponState::Idle;
+}
+
+void AShooterWeapon::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	if (WeaponConfig.InitialClips > 0)
+	{
+		CurrentAmmoInClip = WeaponConfig.AmmoPerClip;
+		CurrentAmmo = WeaponConfig.AmmoPerClip * WeaponConfig.InitialClips;
+	}
 }
 
 void AShooterWeapon::BeginPlay()
 {
 	Super::BeginPlay();
-
-	TimeBetweenShots = 60.0f / RateOfFire;
+	
+	MyPawn = GetPawnOwner();
 }
 
 void AShooterWeapon::Fire()
 {
-	AActor* MyOwner = GetOwner();
-	if (MyOwner)
+	if (MyPawn)
 	{
+		if (FireAnim)
+		{
+			MyPawn->PlayAnimMontage(FireAnim);
+		}
 		FVector ActorEyesLocation;
 		FRotator ActorEyesRotation;
 		
-		MyOwner->GetActorEyesViewPoint(ActorEyesLocation, ActorEyesRotation);
+		MyPawn->GetActorEyesViewPoint(ActorEyesLocation, ActorEyesRotation);
 
 		FVector ShotDirection = ActorEyesRotation.Vector();
 		FVector LineTraceEndLocation = ActorEyesLocation + ShotDirection * 10000;
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
-		QueryParams.AddIgnoredActor(MyOwner);
+		QueryParams.AddIgnoredActor(MyPawn);
 		QueryParams.bTraceComplex = true;
 		QueryParams.bReturnPhysicalMaterial = true;
 
@@ -69,9 +83,9 @@ void AShooterWeapon::Fire()
 			float ActualDamage = BaseDamage;
 			if (SurfaceType == SURFACE_FLESHVULNERABLE)
 			{
-				ActualDamage *= 4.0f;
+				ActualDamage *= 5.0f;
 			}
-			UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyOwner->GetInstigatorController(), this, DamageType);
+			UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), this, DamageType);
 
 			UParticleSystem* SelectedEffect = nullptr;
 
@@ -103,13 +117,52 @@ void AShooterWeapon::Fire()
 
 void AShooterWeapon::StartFire()
 {
-	float FirstDelay = FMath::Max(LastFireTime + TimeBetweenShots - GetWorld()->TimeSeconds, 0.0f);
-	GetWorldTimerManager().SetTimer(TimerHandle_TimeBetweenShots, this, &AShooterWeapon::Fire, TimeBetweenShots, true, FirstDelay);
+	CurrentState = EWeaponState::Firing;
+	float FirstDelay = FMath::Max(LastFireTime + WeaponConfig.TimeBetweenShots - GetWorld()->TimeSeconds, 0.0f);
+	GetWorldTimerManager().SetTimer(TimerHandle_TimeBetweenShots, this, &AShooterWeapon::Fire, WeaponConfig.TimeBetweenShots, true, FirstDelay);
 }
 
 void AShooterWeapon::StopFire()
 {
+	CurrentState = EWeaponState::Idle;
 	GetWorldTimerManager().ClearTimer(TimerHandle_TimeBetweenShots);
+	MyPawn->StopAnimMontage(FireAnim);
+}
+
+void AShooterWeapon::ReloadWeapon()
+{
+	int32 ClipDelta = FMath::Min(WeaponConfig.AmmoPerClip - CurrentAmmoInClip, CurrentAmmo - CurrentAmmoInClip);
+	CurrentAmmoInClip += ClipDelta;
+}
+
+void AShooterWeapon::StartReload()
+{
+	if (CanReload())
+	{
+		if (ReloadAnim)
+		{
+			CurrentState = EWeaponState::Reloading;
+			MyPawn->PlayAnimMontage(ReloadAnim);
+			UGameplayStatics::SpawnSoundAttached(ReloadSound, MeshComponent, MuzzleSocketName);
+			ReloadWeapon();
+		}
+	}
+}
+
+void AShooterWeapon::StopReload()
+{
+	if (CurrentState == EWeaponState::Reloading)
+	{
+		CurrentState = EWeaponState::Idle;
+		MyPawn->StopAnimMontage(ReloadAnim);
+	}
+}
+
+bool AShooterWeapon::CanReload()
+{
+	bool bGotAmmo = (CurrentAmmoInClip < WeaponConfig.AmmoPerClip) && (CurrentAmmo - CurrentAmmoInClip > 0);
+	bool bStateOKToReload = ((CurrentState == EWeaponState::Idle) || (CurrentState == EWeaponState::Firing));
+	return bGotAmmo && bStateOKToReload;
 }
 
 void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)
@@ -142,4 +195,18 @@ void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)
 	}
 }
 
+class AShooterCharacter* AShooterWeapon::GetPawnOwner() const
+{
+	return MyPawn;
+}
+
+void AShooterWeapon::SetOwningPawn(AShooterCharacter* NewOwner)
+{
+	if (MyPawn != NewOwner)
+	{
+		SetInstigator(NewOwner);
+		MyPawn = NewOwner;
+		SetOwner(NewOwner);
+	}
+}
 
