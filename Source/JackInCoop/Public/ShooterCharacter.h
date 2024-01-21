@@ -68,12 +68,17 @@ protected:
 	virtual void BeginPlay() override;
 	
 	void Move(const FInputActionValue& Value);
+
 	void Look(const FInputActionValue& Value);
+	
 	void BeginCrouch(const FInputActionValue& Value);
 	void EndCrouch(const FInputActionValue& Value);
+
 	void BeginZoom(const FInputActionValue& Value);
 	void EndZoom(const FInputActionValue& Value);
-	void Fire(const FInputActionValue& Value);
+
+	void StartFire(const FInputActionValue& Value);
+	void StopFire(const FInputActionValue& Value);
 
 public:	
 	// Called every frame

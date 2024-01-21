@@ -81,7 +81,8 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AShooterCharacter::BeginZoom);
 		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Completed, this, &AShooterCharacter::EndZoom);
 
-		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AShooterCharacter::Fire);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AShooterCharacter::StartFire);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AShooterCharacter::StopFire);
 	}
 }
 
@@ -142,12 +143,19 @@ void AShooterCharacter::EndZoom(const FInputActionValue& Value)
 	bWantsToZoom = false;
 }
 
-void AShooterCharacter::Fire(const FInputActionValue& Value)
+void AShooterCharacter::StartFire(const FInputActionValue& Value)
 {
 	if (CurrentWeapon)
 	{
-		CurrentWeapon->Fire();
+		CurrentWeapon->StartFire();
 	}
 }
 
+void AShooterCharacter::StopFire(const FInputActionValue& Value)
+{
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->StopFire();
+	}
+}
 
