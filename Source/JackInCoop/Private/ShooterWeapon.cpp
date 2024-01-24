@@ -6,6 +6,7 @@
 #include "ShooterCharacter.h"
 #include "JackInCoop/JackInCoop.h"
 #include "Kismet/GameplayStatics.h"
+#include "Math/UnrealMathUtility.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
@@ -27,8 +28,15 @@ AShooterWeapon::AShooterWeapon()
 	TracerBeamEndName = "BeamEnd";
 
 	BaseDamage = 20.0f;
+	BulletSpread = 2.0f;
 
 	CurrentState = EWeaponState::Idle;
+
+	HitReactAnimArray.Add(HitReactAnim_1);
+	HitReactAnimArray.Add(HitReactAnim_2);
+	HitReactAnimArray.Add(HitReactAnim_3);
+	HitReactAnimArray.Add(HitReactAnim_4);
+	
 }
 
 void AShooterWeapon::PostInitializeComponents()
@@ -53,87 +61,149 @@ void AShooterWeapon::Fire()
 {
 	if (MyPawn)
 	{
-		if (FireAnim)
+		if (CanFire())
 		{
-			MyPawn->PlayAnimMontage(FireAnim);
+			
+			if (HipFireAnim && !MyPawn->GetWantsZoom())
+			{
+				MyPawn->PlayAnimMontage(HipFireAnim);
+			}
+			else if (IronsightsFireAnim && MyPawn->GetWantsZoom())
+			{
+				MyPawn->PlayAnimMontage(IronsightsFireAnim);
+			}
+			UseAmmo();
+			FVector ActorEyesLocation;
+			FRotator ActorEyesRotation;
+			
+			MyPawn->GetActorEyesViewPoint(ActorEyesLocation, ActorEyesRotation);
+
+			FVector ShotDirection = ActorEyesRotation.Vector();
+
+			/* bullet spread*/
+			float HalfRad = FMath::DegreesToRadians(BulletSpread);
+			ShotDirection = FMath::VRandCone(ShotDirection, HalfRad, HalfRad);
+
+			FVector LineTraceEndLocation = ActorEyesLocation + ShotDirection * 10000;
+
+			FCollisionQueryParams QueryParams;
+			QueryParams.AddIgnoredActor(this);
+			QueryParams.AddIgnoredActor(MyPawn);
+			QueryParams.bTraceComplex = true;
+			QueryParams.bReturnPhysicalMaterial = true;
+
+			FVector TracerEndPoint = LineTraceEndLocation;
+			
+			FHitResult HitResult;
+			if(GetWorld()->LineTraceSingleByChannel(HitResult, ActorEyesLocation, LineTraceEndLocation, COLLISION_WEAPON, QueryParams))
+			{
+				AActor* HitActor = HitResult.GetActor();
+				
+				/* It doesn't work
+				int32 RandomHitReaction = FMath::RandRange(0,3);
+				if (AShooterCharacter* HitCharacter = Cast<AShooterCharacter>(HitActor))
+				{
+					HitCharacter->PlayAnimMontage(HitReactAnimArray[RandomHitReaction]);
+				}
+				*/
+				
+				EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
+
+				float ActualDamage = BaseDamage;
+				if (SurfaceType == SURFACE_FLESHVULNERABLE)
+				{
+					ActualDamage *= 5.0f;
+				}
+				UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), this, DamageType);
+
+				UParticleSystem* SelectedEffect = nullptr;
+
+				switch (SurfaceType)
+				{
+				case SURFACE_FLESHDEFAULT:
+					SelectedEffect = FleshImpactEffect;
+					break;
+				case SURFACE_FLESHVULNERABLE:
+					SelectedEffect = FleshImpactEffect;
+					break;
+				default:
+					SelectedEffect = DefaultImpactEffect;
+					break;
+				}
+				if (SelectedEffect)
+				{
+					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), SelectedEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
+				}
+				if (DebugWeaponDrawing > 0)
+				{
+					DrawDebugLine(GetWorld(), ActorEyesLocation, LineTraceEndLocation, FColor::Black, false, 1.0f, 0, 3.0f);
+				}
+				TracerEndPoint = HitResult.ImpactPoint;
+			}
+			PlayFireEffects(TracerEndPoint);
+
+			LastFireTime = GetWorld()->TimeSeconds;
 		}
-		FVector ActorEyesLocation;
-		FRotator ActorEyesRotation;
-		
-		MyPawn->GetActorEyesViewPoint(ActorEyesLocation, ActorEyesRotation);
-
-		FVector ShotDirection = ActorEyesRotation.Vector();
-		FVector LineTraceEndLocation = ActorEyesLocation + ShotDirection * 10000;
-
-		FCollisionQueryParams QueryParams;
-		QueryParams.AddIgnoredActor(this);
-		QueryParams.AddIgnoredActor(MyPawn);
-		QueryParams.bTraceComplex = true;
-		QueryParams.bReturnPhysicalMaterial = true;
-
-		FVector TracerEndPoint = LineTraceEndLocation;
-		
-		FHitResult HitResult;
-		if(GetWorld()->LineTraceSingleByChannel(HitResult, ActorEyesLocation, LineTraceEndLocation, COLLISION_WEAPON, QueryParams))
+		else
 		{
-			AActor* HitActor = HitResult.GetActor();
-
-			EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
-
-			float ActualDamage = BaseDamage;
-			if (SurfaceType == SURFACE_FLESHVULNERABLE)
-			{
-				ActualDamage *= 5.0f;
-			}
-			UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), this, DamageType);
-
-			UParticleSystem* SelectedEffect = nullptr;
-
-			switch (SurfaceType)
-			{
-			case SURFACE_FLESHDEFAULT:
-				SelectedEffect = FleshImpactEffect;
-				break;
-			case SURFACE_FLESHVULNERABLE:
-				SelectedEffect = FleshImpactEffect;
-				break;
-			default:
-				SelectedEffect = DefaultImpactEffect;
-				break;
-			}
-			if (SelectedEffect)
-			{
-				UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), SelectedEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
-			}
-			if (DebugWeaponDrawing > 0)
-			{
-				DrawDebugLine(GetWorld(), ActorEyesLocation, LineTraceEndLocation, FColor::Black, false, 1.0f, 0, 3.0f);
-			}
-			TracerEndPoint = HitResult.ImpactPoint;
+			StartReload();
+			StopFire();
+			GetWorldTimerManager().ClearTimer(TimerHandle_TimeBetweenShots);
 		}
-		PlayFireEffects(TracerEndPoint);
 	}
 }
 
 void AShooterWeapon::StartFire()
 {
-	CurrentState = EWeaponState::Firing;
-	float FirstDelay = FMath::Max(LastFireTime + WeaponConfig.TimeBetweenShots - GetWorld()->TimeSeconds, 0.0f);
-	GetWorldTimerManager().SetTimer(TimerHandle_TimeBetweenShots, this, &AShooterWeapon::Fire, WeaponConfig.TimeBetweenShots, true, FirstDelay);
+	if (CanFire())
+	{
+		CurrentState = EWeaponState::Firing;
+		float FirstDelay = FMath::Max(LastFireTime + WeaponConfig.TimeBetweenShots - GetWorld()->TimeSeconds, 0.0f);
+		GetWorldTimerManager().SetTimer(TimerHandle_TimeBetweenShots, this, &AShooterWeapon::Fire, WeaponConfig.TimeBetweenShots, true, FirstDelay);
+	}
+	else if (CurrentAmmoInClip <= 0)
+	{
+		StopFire();
+		StartReload();
+	}
+	else if (CurrentAmmo <= 0)
+	{
+		UGameplayStatics::SpawnSoundAttached(EmptyClipSound, MeshComponent, MuzzleSocketName);
+	}
+	else
+	{
+		StopFire();
+	}
 }
 
 void AShooterWeapon::StopFire()
 {
-	CurrentState = EWeaponState::Idle;
-	GetWorldTimerManager().ClearTimer(TimerHandle_TimeBetweenShots);
-	MyPawn->StopAnimMontage(FireAnim);
+	if (CanFire())
+	{
+		CurrentState = EWeaponState::Idle;
+		GetWorldTimerManager().ClearTimer(TimerHandle_TimeBetweenShots);
+	}
+}
+
+bool AShooterWeapon::CanFire() const
+{
+	bool bGotAmmoInClip = (CurrentAmmoInClip > 0);
+	bool bStateOKToFire = ( ( CurrentState ==  EWeaponState::Idle ) || ( CurrentState == EWeaponState::Firing) );
+	return (bStateOKToFire && bGotAmmoInClip);
+}
+
+void AShooterWeapon::UseAmmo()
+{
+	CurrentAmmoInClip--;
+	CurrentAmmo--;
 }
 
 void AShooterWeapon::ReloadWeapon()
 {
-	int32 ClipDelta = FMath::Min(WeaponConfig.AmmoPerClip - CurrentAmmoInClip, CurrentAmmo - CurrentAmmoInClip);
-	CurrentAmmoInClip += ClipDelta;
+	UGameplayStatics::SpawnSoundAttached(ReloadSound, MeshComponent, MuzzleSocketName);
+	GetWorldTimerManager().SetTimer(TimerHandle_ReloadComplete, this, &AShooterWeapon::FinishReload, ReloadAnim->GetPlayLength(), false);
 }
+
 
 void AShooterWeapon::StartReload()
 {
@@ -142,27 +212,37 @@ void AShooterWeapon::StartReload()
 		if (ReloadAnim)
 		{
 			CurrentState = EWeaponState::Reloading;
-			MyPawn->PlayAnimMontage(ReloadAnim);
-			UGameplayStatics::SpawnSoundAttached(ReloadSound, MeshComponent, MuzzleSocketName);
-			ReloadWeapon();
+			float AnimDuration = MyPawn->PlayAnimMontage(ReloadAnim, 1.3f,NAME_None);
+			GetWorldTimerManager().SetTimer(TimerHandle_ReloadWeapon, this,  &AShooterWeapon::ReloadWeapon, AnimDuration, false, 0.0f);
 		}
 	}
 }
 
-void AShooterWeapon::StopReload()
+void AShooterWeapon::FinishReload()
 {
 	if (CurrentState == EWeaponState::Reloading)
 	{
+		int32 ClipDelta = FMath::Min(WeaponConfig.AmmoPerClip - CurrentAmmoInClip, CurrentAmmo - CurrentAmmoInClip);
+		CurrentAmmoInClip += ClipDelta;
 		CurrentState = EWeaponState::Idle;
-		MyPawn->StopAnimMontage(ReloadAnim);
 	}
 }
 
-bool AShooterWeapon::CanReload()
+bool AShooterWeapon::CanReload() const
 {
 	bool bGotAmmo = (CurrentAmmoInClip < WeaponConfig.AmmoPerClip) && (CurrentAmmo - CurrentAmmoInClip > 0);
 	bool bStateOKToReload = ((CurrentState == EWeaponState::Idle) || (CurrentState == EWeaponState::Firing));
 	return bGotAmmo && bStateOKToReload;
+}
+
+float AShooterWeapon::GetBulletSpread()
+{
+	return BulletSpread;
+}
+
+float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
+{
+	return BulletSpread = NewBulletSpread;
 }
 
 void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)

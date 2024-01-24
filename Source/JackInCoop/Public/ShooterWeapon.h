@@ -8,16 +8,14 @@
 
 class USkeletalMeshComponent;
 
-namespace EWeaponState
+UENUM(BlueprintType)
+enum class EWeaponState: uint8
 {
-	enum Type
-	{
 		Idle,
 		Firing,
 		Reloading,
 		Equipping
-	};
-}
+};
 
 USTRUCT()
 struct FWeaponData
@@ -64,15 +62,23 @@ public:
 	
 	void StopFire();
 
+	bool CanFire() const;
+	
+	void UseAmmo();
+
 	void ReloadWeapon();
 
 	void StartReload();
 
-	void StopReload();
+	void FinishReload();
 
-	bool CanReload();
+	bool CanReload() const;
 	
-	void PlayFireEffects(FVector TracerEndPoint);
+	float GetBulletSpread();
+	
+	float SetBulletSpread(float NewBulletSpread);
+	
+	virtual void PlayFireEffects(FVector TracerEndPoint);
 
 	/** get pawn owner */
 	UFUNCTION(BlueprintCallable, Category="Game|Weapon")
@@ -99,6 +105,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<UCameraShakeBase> FireCameraShake;
+
+	/* Bullet Spread in Degrees */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin=0.0f))
+	float BulletSpread;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	float BaseDamage;
@@ -121,13 +131,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* ReloadSound;
 	
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* EmptyClipSound;
+	
 	FTimerHandle TimerHandle_TimeBetweenShots;
 
 	/** Handle for efficient management of ReloadWeapon timer */
 	FTimerHandle TimerHandle_ReloadWeapon;
 
 	/** Handle for efficient management of StopReload timer */
-	FTimerHandle TimerHandle_StopReload;
+	FTimerHandle TimerHandle_ReloadComplete;
 
 	float LastFireTime;
 	
@@ -140,15 +153,41 @@ protected:
 
 	/* fire animation */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* FireAnim;
+	UAnimMontage* HipFireAnim;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* IronsightsFireAnim;
+
+	/* hit animations tarray */
+	TArray<UAnimMontage*> HitReactAnimArray;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* HitReactAnim_1;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* HitReactAnim_2;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* HitReactAnim_3;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* HitReactAnim_4;
 
 	/* current total ammo */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	int32 CurrentAmmo;
 	/* current ammo inside clip */
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	int32 CurrentAmmoInClip;
 
 	/* current weapon state*/
-	EWeaponState::Type CurrentState;
+	UPROPERTY(BlueprintReadOnly)
+	EWeaponState CurrentState;
 	
 	/* weapon data */
 	UPROPERTY(EditDefaultsOnly, Category = "Config")
@@ -157,5 +196,7 @@ protected:
 	/* pawn owner */
 	UPROPERTY()
 	class AShooterCharacter* MyPawn;
+private:
+	bool bPendingStopFire;
 };
 

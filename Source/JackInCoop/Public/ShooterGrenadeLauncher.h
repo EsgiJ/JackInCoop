@@ -15,7 +15,10 @@ class JACKINCOOP_API AShooterGrenadeLauncher : public AShooterWeapon
 {
 	GENERATED_BODY()
 
+	virtual void PlayFireEffects(FVector TracerEndPoint) override;
 protected:
+	virtual void BeginPlay() override;
+	
 	virtual void Fire() override;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")

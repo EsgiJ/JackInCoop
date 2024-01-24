@@ -84,7 +84,7 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AShooterCharacter::StartFire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AShooterCharacter::StopFire);
 
-		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &AShooterCharacter::Reload);
+		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &AShooterCharacter::StartReload);
 	}
 }
 
@@ -138,11 +138,13 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 void AShooterCharacter::BeginZoom(const FInputActionValue& Value)
 {
 	bWantsToZoom = true;
+	CurrentWeapon->SetBulletSpread(1.0f);
 }
 
 void AShooterCharacter::EndZoom(const FInputActionValue& Value)
 {
 	bWantsToZoom = false;
+	CurrentWeapon->SetBulletSpread(2.0f);
 }
 
 void AShooterCharacter::StartFire(const FInputActionValue& Value)
@@ -161,8 +163,12 @@ void AShooterCharacter::StopFire(const FInputActionValue& Value)
 	}
 }
 
-void AShooterCharacter::Reload(const FInputActionValue& Value)
+void AShooterCharacter::StartReload(const FInputActionValue& Value)
 {
 	CurrentWeapon->StartReload();
 }
 
+bool AShooterCharacter::GetWantsZoom()
+{
+	return bWantsToZoom;
+}

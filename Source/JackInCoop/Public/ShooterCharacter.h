@@ -54,9 +54,11 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Camera", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float ZoomInterpSpeed;
-	
+
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	bool bWantsToZoom;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	AShooterWeapon* CurrentWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
@@ -86,7 +88,7 @@ protected:
 	void StartFire(const FInputActionValue& Value);
 	void StopFire(const FInputActionValue& Value);
 
-	void Reload(const FInputActionValue& Value);
+	void StartReload(const FInputActionValue& Value);
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -95,4 +97,6 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	virtual FVector GetPawnViewLocation() const override;
+
+	bool GetWantsZoom();
 };
