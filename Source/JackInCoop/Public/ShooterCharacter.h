@@ -81,8 +81,8 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	bool bWantsToZoom;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+    
+	UPROPERTY(Replicated,BlueprintReadOnly, Category = "Weapon")
 	AShooterWeapon* CurrentWeapon;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
@@ -96,9 +96,8 @@ protected:
 	UFUNCTION()
 	void OnHealthChanged(UHealthComponent* HealthComp, float Health, float
 	HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
-
 	/* Pawn recently died*/
-	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Health")
 	bool bDied;
 
 public:

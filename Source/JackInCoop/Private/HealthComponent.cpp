@@ -29,11 +29,13 @@ void UHealthComponent::BeginPlay()
 void UHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
 	AController* InstigatedBy, AActor* DamageCauser)
 {
+	/* If damage is less or equal to zero, do not run the remaining code*/
 	if (Damage <=0.0f)
 	{
 		return;
 	}
 
+	/* Make sure health doesn't drop below 0 */
 	Health = FMath::Clamp(Health - Damage, 0.0f,DefaultHealth);
 
 	UE_LOG(LogTemp, Log, TEXT("Health Changed: %s"), *FString::SanitizeFloat(Health));

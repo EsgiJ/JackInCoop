@@ -11,6 +11,7 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "JackInCoop/JackInCoop.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveAction(nullptr), LookAction(nullptr)
@@ -18,22 +19,30 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	/* Create spring arm component */
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
 	SpringArmComponent->bUsePawnControlRotation = true;
 	SpringArmComponent->SetupAttachment(RootComponent);
 
+	/* Shooter character can crouch*/
 	GetMovementComponent()->GetNavAgentPropertiesRef().bCanCrouch = true;
-	
+	/*  */
 	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
 
+	/* Create health component */
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("Health Component"));
-	
+
+	/* Create camera component */
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
 
+	/* Set Ironsights parameters*/
+	/* Set Zoomed Field Of View */
 	ZoomedFOV = 65.0f;
+	/* Set interp speed when switching from DefaultFOV to ZoomedFOV*/
 	ZoomInterpSpeed = 20.0f;
 
+	/* Socket name to attach the weapon */
 	WeaponAttachSocketName = "WeaponSocket";
 }
 
@@ -41,7 +50,8 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 void AShooterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	/* Add mapping context for inputs */
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
@@ -50,27 +60,31 @@ void AShooterCharacter::BeginPlay()
 		}
 	}
 
+	/* Set default Field Of View */
 	DefaultFOV = CameraComponent->FieldOfView;
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	CurrentWeapon = GetWorld()->SpawnActor<AShooterWeapon>(StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
-	if (CurrentWeapon)
-	{
-		CurrentWeapon->SetOwningPawn(this);
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponAttachSocketName);
-	}
-
 	HealthComponent->OnHealthChanged.AddDynamic(this, &AShooterCharacter::OnHealthChanged);
+
+	/* Check if player has authority to prevent multiple Current Weapon instances*/
+	if (HasAuthority())
+	{
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		CurrentWeapon = GetWorld()->SpawnActor<AShooterWeapon>(StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->SetOwningPawn(this);
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponAttachSocketName);
+		}
+	}
 }
 
 // Called every frame
 void AShooterCharacter::Tick(float DeltaTime)
 {
-	Super::Tick(DeltaTime)
-	;
-	float TargetFOV = bWantsToZoom ? ZoomedFOV : DefaultFOV;
+	Super::Tick(DeltaTime);
 
+	/* Change FOV if player wants to zoom */
+	float TargetFOV = bWantsToZoom ? ZoomedFOV : DefaultFOV;
 	float NewFOV = FMath::FInterpTo(CameraComponent->FieldOfView, TargetFOV, DeltaTime, ZoomInterpSpeed);
 	CameraComponent->SetFieldOfView(NewFOV);
 }
@@ -78,6 +92,7 @@ void AShooterCharacter::Tick(float DeltaTime)
 // Called to bind functionality to input
 void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
+	/* Bind input methods to InputActions */
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AShooterCharacter::Move);
@@ -100,7 +115,14 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Health, float
 	HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
 {
-	if (Health <= 0.0f && !bDied)
+	/* If already dead return and do nothing */
+	if (bDied)
+	{
+		return;
+	}
+	/* If health is less or equal to 0; stop movement of player, destroy collision,
+	 * destroy mesh after 10 seconds, detach controller*/
+	if (Health <= 0.0f)
 	{
 		bDied = true;
 		
@@ -114,6 +136,7 @@ void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Heal
 	}
 }
 
+/* Get pawn view location to calculate shot direction */
 FVector AShooterCharacter::GetPawnViewLocation() const
 {
 	if (CameraComponent)
@@ -164,13 +187,15 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 void AShooterCharacter::BeginZoom(const FInputActionValue& Value)
 {
 	bWantsToZoom = true;
-	CurrentWeapon->SetBulletSpread(1.0f);
+	/* Decrease bullet spread if player is aiming */
+	CurrentWeapon->SetBulletSpread(0.5f);
 }
 
 void AShooterCharacter::EndZoom(const FInputActionValue& Value)
 {
 	bWantsToZoom = false;
-	CurrentWeapon->SetBulletSpread(2.0f);
+	/* Increase bullet spread if player is not aiming */
+	CurrentWeapon->SetBulletSpread(1.5f);
 }
 
 void AShooterCharacter::StartFire(const FInputActionValue& Value)
@@ -197,4 +222,13 @@ void AShooterCharacter::StartReload(const FInputActionValue& Value)
 bool AShooterCharacter::GetWantsZoom()
 {
 	return bWantsToZoom;
+}
+
+/* Replicate object for networking*/
+void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
+	DOREPLIFETIME(AShooterCharacter, bDied);
 }

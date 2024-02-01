@@ -43,7 +43,7 @@ struct FWeaponData
 		MaxAmmo = 100;
 		AmmoPerClip = 20;
 		InitialClips = 4;
-		RateOfFire = 300;
+		RateOfFire = 600;
 		TimeBetweenShots = 60 / RateOfFire;
 	}
 };
@@ -52,12 +52,13 @@ class JACKINCOOP_API AShooterWeapon : public AActor
 {
 	GENERATED_BODY()
 	
+	
 public:	
 	// Sets default values for this actor's properties
 	AShooterWeapon();
 
-	virtual void PostInitializeComponents() override;
-	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* METHODS */
 	void StartFire();
 	
 	void StopFire();
@@ -86,17 +87,26 @@ public:
 
 	/** set the weapon's owning pawn */
 	void SetOwningPawn(AShooterCharacter* AShooterCharacter);
+	
+	/* pawn owner */
+	UPROPERTY()
+	class AShooterCharacter* MyPawn;
+
+	virtual void PostInitializeComponents() override;
+	
 
 protected:
 
 	virtual void BeginPlay() override;
 	
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* COMPONENTS*/
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* MeshComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	TSubclassOf<UDamageType> DamageType;
-
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* WEAPON */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName MuzzleSocketName;
 
@@ -106,6 +116,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<UCameraShakeBase> FireCameraShake;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	TSubclassOf<UDamageType> DamageType;
+
 	/* Bullet Spread in Degrees */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin=0.0f))
 	float BulletSpread;
@@ -113,71 +126,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	float BaseDamage;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
-	UParticleSystem* DefaultImpactEffect;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* WEAPON DATA */
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
-	UParticleSystem* FleshImpactEffect;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
-	UParticleSystem* MuzzleEffect;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
-	UParticleSystem* TracerEffect;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Sound")
-	USoundBase* RifleFireSound;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Sound")
-	USoundBase* ReloadSound;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "Sound")
-	USoundBase* EmptyClipSound;
-	
-	FTimerHandle TimerHandle_TimeBetweenShots;
-
-	/** Handle for efficient management of ReloadWeapon timer */
-	FTimerHandle TimerHandle_ReloadWeapon;
-
-	/** Handle for efficient management of StopReload timer */
-	FTimerHandle TimerHandle_ReloadComplete;
-
-	float LastFireTime;
-	
-	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	virtual void Fire();
-
-	/* reload animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* ReloadAnim;
-
-	/* fire animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* HipFireAnim;
-
-	/* fire animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* IronsightsFireAnim;
-
-	/* hit animations tarray */
-	TArray<UAnimMontage*> HitReactAnimArray;
-
-	/* fire animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* HitReactAnim_1;
-
-	/* fire animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* HitReactAnim_2;
-
-	/* fire animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* HitReactAnim_3;
-
-	/* fire animation */
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* HitReactAnim_4;
-
 	/* current total ammo */
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
 	int32 CurrentAmmo;
@@ -193,10 +144,62 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Config")
 	FWeaponData WeaponConfig;
 
-	/* pawn owner */
-	UPROPERTY()
-	class AShooterCharacter* MyPawn;
-private:
-	bool bPendingStopFire;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* FX */
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
+	UParticleSystem* DefaultImpactEffect;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
+	UParticleSystem* FleshImpactEffect;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
+	UParticleSystem* MuzzleEffect;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
+	UParticleSystem* TracerEffect;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* SOUND */
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* RifleFireSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* ReloadSound;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* EmptyClipSound;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* TIMERS */
+
+	FTimerHandle TimerHandle_TimeBetweenShots;
+
+	/** Handle for efficient management of ReloadWeapon timer */
+	FTimerHandle TimerHandle_ReloadWeapon;
+
+	/** Handle for efficient management of StopReload timer */
+	FTimerHandle TimerHandle_ReloadComplete;
+
+	float LastFireTime;
+	
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	virtual void Fire();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* ANIMS */
+
+	/* reload animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ReloadAnim;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* HipFireAnim;
+
+	/* fire animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* IronsightsFireAnim;
 };
 
