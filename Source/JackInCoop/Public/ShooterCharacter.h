@@ -79,7 +79,7 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* WEAPON */
 	
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	bool bWantsToZoom;
     
 	UPROPERTY(Replicated,BlueprintReadOnly, Category = "Weapon")
@@ -90,6 +90,7 @@ protected:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName WeaponAttachSocketName;
+	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* HEALTH */
 	
@@ -109,19 +110,32 @@ protected:
 	virtual void BeginPlay() override;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* INPUT METHODS */
+
+	/* Move Input */
 	void Move(const FInputActionValue& Value);
 
+	/* Look Input */
 	void Look(const FInputActionValue& Value);
-	
+
+	/* Crouch */
 	void BeginCrouch(const FInputActionValue& Value);
 	void EndCrouch(const FInputActionValue& Value);
 
-	void BeginZoom(const FInputActionValue& Value);
-	void EndZoom(const FInputActionValue& Value);
-
+	/* Zoom | Ironsights | Server */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerBeginZoom(const FInputActionValue& Value);
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastBeginZoom();
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerEndZoom(const FInputActionValue& Value);
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastEndZoom();
+	
+	/* Fire */
 	void StartFire(const FInputActionValue& Value);
 	void StopFire(const FInputActionValue& Value);
 
+	/* Reload Weapon */
 	void StartReload(const FInputActionValue& Value);
 public:	
 	// Called every frame

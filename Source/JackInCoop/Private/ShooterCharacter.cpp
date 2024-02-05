@@ -8,6 +8,7 @@
 #include "ShooterWeapon.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "JackInCoop/JackInCoop.h"
@@ -44,6 +45,11 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 
 	/* Socket name to attach the weapon */
 	WeaponAttachSocketName = "WeaponSocket";
+
+	GetCharacterMovement()->SetIsReplicated(true);
+
+	NetUpdateFrequency = 66.0f;
+	MinNetUpdateFrequency = 33.0f;
 }
 
 // Called when the game starts or when spawned
@@ -74,6 +80,7 @@ void AShooterCharacter::BeginPlay()
 		{
 			CurrentWeapon->SetOwningPawn(this);
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponAttachSocketName);
+			CurrentWeapon->SetBulletSpread(1.5f);
 		}
 	}
 }
@@ -102,8 +109,8 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Triggered, this, &AShooterCharacter::BeginCrouch);
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Completed, this, &AShooterCharacter::EndCrouch);
 		
-		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AShooterCharacter::BeginZoom);
-		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Completed, this, &AShooterCharacter::EndZoom);
+		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &AShooterCharacter::ServerBeginZoom);
+		EnhancedInputComponent->BindAction(ZoomAction, ETriggerEvent::Completed, this, &AShooterCharacter::ServerEndZoom);
 
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &AShooterCharacter::StartFire);
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AShooterCharacter::StopFire);
@@ -146,6 +153,9 @@ FVector AShooterCharacter::GetPawnViewLocation() const
 	return Super::GetPawnViewLocation();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* INPUT */
+
 void AShooterCharacter::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
@@ -184,14 +194,34 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 	UnCrouch();
 }
 
-void AShooterCharacter::BeginZoom(const FInputActionValue& Value)
+void AShooterCharacter::ServerBeginZoom_Implementation(const FInputActionValue& Value)
+{
+	MulticastBeginZoom();
+}
+
+bool AShooterCharacter::ServerBeginZoom_Validate(const FInputActionValue& Value)
+{
+	return true;
+}
+
+void AShooterCharacter::MulticastBeginZoom_Implementation()
 {
 	bWantsToZoom = true;
 	/* Decrease bullet spread if player is aiming */
-	CurrentWeapon->SetBulletSpread(0.5f);
+	CurrentWeapon->SetBulletSpread(0.5f);	
 }
 
-void AShooterCharacter::EndZoom(const FInputActionValue& Value)
+void AShooterCharacter::ServerEndZoom_Implementation(const FInputActionValue& Value)
+{
+	MulticastEndZoom();
+}
+
+bool AShooterCharacter::ServerEndZoom_Validate(const FInputActionValue& Value)
+{
+	return true;
+}
+
+void AShooterCharacter::MulticastEndZoom_Implementation()
 {
 	bWantsToZoom = false;
 	/* Increase bullet spread if player is not aiming */
@@ -224,6 +254,9 @@ bool AShooterCharacter::GetWantsZoom()
 	return bWantsToZoom;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* SERVER */
+
 /* Replicate object for networking*/
 void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -231,4 +264,5 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, bDied);
+	DOREPLIFETIME(AShooterCharacter, bWantsToZoom);
 }

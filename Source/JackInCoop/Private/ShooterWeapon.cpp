@@ -7,6 +7,7 @@
 #include "JackInCoop/JackInCoop.h"
 #include "Kismet/GameplayStatics.h"
 #include "Math/UnrealMathUtility.h"
+#include "Net/UnrealNetwork.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
@@ -31,6 +32,11 @@ AShooterWeapon::AShooterWeapon()
 	BulletSpread = 1.5f;
 
 	CurrentState = EWeaponState::Idle;
+
+	SetReplicates(true);
+
+	NetUpdateFrequency = 66.0f;
+	MinNetUpdateFrequency = 33.0f;
 }
 
 void AShooterWeapon::PostInitializeComponents()
@@ -48,7 +54,8 @@ void AShooterWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	MyPawn = GetPawnOwner();
+	//MyPawn = GetPawnOwner();
+	MyPawn = Cast<AShooterCharacter>(GetOwner());
 }
 
 void AShooterWeapon::Fire()
@@ -61,13 +68,12 @@ void AShooterWeapon::Fire()
 			/* Play anim montages based on bWantsZoom*/
 			if (HipFireAnim && !MyPawn->GetWantsZoom())
 			{
-				MyPawn->PlayAnimMontage(HipFireAnim);
+				ServerPlayAnimationMontage(HipFireAnim);
 			}
 			else if (IronsightsFireAnim && MyPawn->GetWantsZoom())
 			{
-				MyPawn->PlayAnimMontage(IronsightsFireAnim);
+				ServerPlayAnimationMontage(IronsightsFireAnim);
 			}
-			
 			/* Decrease ammo count */
 			UseAmmo();
 
@@ -93,16 +99,17 @@ void AShooterWeapon::Fire()
 			FVector TracerEndPoint = LineTraceEndLocation;
 			
 			FHitResult HitResult;
-
-			/* Check whether hit result is null or nor*/
+			EPhysicalSurface SurfaceType = SurfaceType_Default;
+			/* Check whether hit result is null or not*/
 			if(GetWorld()->LineTraceSingleByChannel(HitResult, ActorEyesLocation, LineTraceEndLocation, COLLISION_WEAPON, QueryParams))
 			{
 				AActor* HitActor = HitResult.GetActor();
 
 				//Determine surface type
-				EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
+				SurfaceType = UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
 
 				float ActualDamage = BaseDamage;
+				
 				/* If surface type is SURFACE_FLESHVULNERABLE(for instance headshot) multiply base damage by 5*/
 				if (SurfaceType == SURFACE_FLESHVULNERABLE)
 				{
@@ -110,37 +117,25 @@ void AShooterWeapon::Fire()
 				}
 				UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), this, DamageType);
 
-				UParticleSystem* SelectedEffect = nullptr;
-
-				/* Select impact effect according to surface type */
-				switch (SurfaceType)
-				{
-				case SURFACE_FLESHDEFAULT:
-					SelectedEffect = FleshImpactEffect;
-					break;
-				case SURFACE_FLESHVULNERABLE:
-					SelectedEffect = FleshImpactEffect;
-					break;
-				default:
-					SelectedEffect = DefaultImpactEffect;
-					break;
-				}
-				/* Spawn selected emitter */
-				if (SelectedEffect)
-				{
-					UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), SelectedEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
-				}
-
-				/* On-off console command*/
-				if (DebugWeaponDrawing > 0)
-				{
-					DrawDebugLine(GetWorld(), ActorEyesLocation, LineTraceEndLocation, FColor::Black, false, 1.0f, 0, 3.0f);
-				}
+				PlayImpactEffects(SurfaceType, HitResult.ImpactPoint);
 				
 				TracerEndPoint = HitResult.ImpactPoint;
+				
 			}
+			/* On-off console command*/
+			if (DebugWeaponDrawing > 0)
+			{
+				DrawDebugLine(GetWorld(), ActorEyesLocation, LineTraceEndLocation, FColor::Black, false, 1.0f, 0, 3.0f);
+			}
+			
 			PlayFireEffects(TracerEndPoint);
-	
+			
+			if (HasAuthority())
+			{
+				HitScanTrace.TraceTo = TracerEndPoint;
+				HitScanTrace.SurfaceType = SurfaceType;
+			}
+			
 			LastFireTime = GetWorld()->TimeSeconds;
 		}
 	}
@@ -153,8 +148,40 @@ void AShooterWeapon::Fire()
 	}
 }
 
+void AShooterWeapon::ServerStopFire_Implementation()
+{
+	StopFire();
+}
+
+bool AShooterWeapon::ServerStopFire_Validate()
+{
+	return true;
+}
+
+void AShooterWeapon::ServerStartFire_Implementation()
+{
+	StartFire();
+}
+
+bool AShooterWeapon::ServerStartFire_Validate()
+{
+	return true;
+}
+
+void AShooterWeapon::OnRep_HitScanTrace()
+{
+	//Play cosmetic FX
+	PlayFireEffects(HitScanTrace.TraceTo);
+
+	PlayImpactEffects(HitScanTrace.SurfaceType, HitScanTrace.TraceTo);
+}
+
 void AShooterWeapon::StartFire()
 {
+	if (!HasAuthority())
+	{
+		ServerStartFire();
+	}
 	/* If pawn can fire */
 	if (CanFire())
 	{
@@ -183,6 +210,10 @@ void AShooterWeapon::StartFire()
 
 void AShooterWeapon::StopFire()
 {
+	if (!HasAuthority())
+	{
+		ServerStopFire();
+	}
 	/* If pawn can fire */
 	if (CanFire())
 	{
@@ -228,7 +259,8 @@ void AShooterWeapon::StartReload()
 		{
 			/* Change pawn state to Relaading*/
 			CurrentState = EWeaponState::Reloading;
-			float AnimDuration = MyPawn->PlayAnimMontage(ReloadAnim, 1.3f,NAME_None);
+			float AnimDuration = 1.0f;
+			ServerPlayAnimationMontage(ReloadAnim);
 			GetWorldTimerManager().SetTimer(TimerHandle_ReloadWeapon, this,  &AShooterWeapon::ReloadWeapon, AnimDuration, false, 0.0f);
 		}
 	}
@@ -269,8 +301,7 @@ float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
 
 void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)
 {
-	/* Play weapon fire effecets*/
-
+	/* Play weapon fire effects*/
 	/* Muzzle effect */
 	if (MuzzleEffect)
 	{
@@ -304,6 +335,34 @@ void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)
 	}
 }
 
+void AShooterWeapon::PlayImpactEffects(EPhysicalSurface SurfaceType, FVector ImpactPoint)
+{
+	
+	UParticleSystem* SelectedEffect = nullptr;
+
+	/* Select impact effect according to surface type */
+	switch (SurfaceType)
+	{
+	case SURFACE_FLESHDEFAULT:
+		SelectedEffect = FleshImpactEffect;
+		break;
+	case SURFACE_FLESHVULNERABLE:
+		SelectedEffect = FleshImpactEffect;
+		break;
+	default:
+		SelectedEffect = DefaultImpactEffect;
+		break;
+	}
+	/* Spawn selected emitter */
+	if (SelectedEffect)
+	{
+		FVector MuzzleLocation = MeshComponent->GetSocketLocation(MuzzleSocketName);
+		FVector ShotDirection = ImpactPoint - MuzzleLocation;
+		ShotDirection.Normalize();
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), SelectedEffect, ImpactPoint, ShotDirection.Rotation());
+	}
+}
+
 class AShooterCharacter* AShooterWeapon::GetPawnOwner() const
 {
 	return MyPawn;
@@ -317,5 +376,44 @@ void AShooterWeapon::SetOwningPawn(AShooterCharacter* NewOwner)
 		MyPawn = NewOwner;
 		SetOwner(NewOwner);
 	}
+}
+
+float AShooterWeapon::PlayAnimationMontage(UAnimMontage* AnimMontage)
+{
+	float Duration = 0.0f;
+	if (MyPawn)
+	{
+		if (AnimMontage)
+		{
+			Duration = MyPawn->PlayAnimMontage(AnimMontage);
+		}
+	}
+	return Duration;
+}
+
+void AShooterWeapon::ServerPlayAnimationMontage_Implementation(UAnimMontage* AnimMontage)
+{
+	MulticastPlayAnimationMontage(AnimMontage);
+}
+
+bool AShooterWeapon::ServerPlayAnimationMontage_Validate(UAnimMontage* AnimMontage)
+{
+	return true;
+}
+
+void AShooterWeapon::MulticastPlayAnimationMontage_Implementation(UAnimMontage* AnimMontage)
+{
+	PlayAnimationMontage(AnimMontage);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* SERVER */
+
+/* Replicate object for networking*/
+void AShooterWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME_CONDITION(AShooterWeapon, HitScanTrace, COND_SkipOwner);
 }
 

@@ -18,6 +18,19 @@ enum class EWeaponState: uint8
 };
 
 USTRUCT()
+struct FHitScanTrace
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY()
+	TEnumAsByte<EPhysicalSurface> SurfaceType;
+
+	UPROPERTY()
+	FVector_NetQuantize TraceTo;
+};
+
+USTRUCT()
 struct FWeaponData
 {
 	GENERATED_BODY()
@@ -79,7 +92,6 @@ public:
 	
 	float SetBulletSpread(float NewBulletSpread);
 	
-	virtual void PlayFireEffects(FVector TracerEndPoint);
 
 	/** get pawn owner */
 	UFUNCTION(BlueprintCallable, Category="Game|Weapon")
@@ -144,9 +156,19 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Config")
 	FWeaponData WeaponConfig;
 
+	UPROPERTY(ReplicatedUsing = OnRep_HitScanTrace)
+	FHitScanTrace HitScanTrace;
+
+	UFUNCTION()
+	void OnRep_HitScanTrace();
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* FX */
 
+	virtual void PlayFireEffects(FVector TracerEndPoint);
+
+	void PlayImpactEffects(EPhysicalSurface SurfaceType, FVector ImpactPoint);
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
 	UParticleSystem* DefaultImpactEffect;
 	
@@ -187,9 +209,23 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	virtual void Fire();
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerStartFire();
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerStopFire();
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* ANIMS */
+	
+	float PlayAnimationMontage(UAnimMontage* AnimMontage);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerPlayAnimationMontage(UAnimMontage* AnimMontage);
+	
 	/* reload animation */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* ReloadAnim;
