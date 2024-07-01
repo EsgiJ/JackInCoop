@@ -7,6 +7,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/RadialForceComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AExplosiveBarrel::AExplosiveBarrel()
@@ -31,6 +32,9 @@ AExplosiveBarrel::AExplosiveBarrel()
 	RadialForceComponent->Radius = ExplosionRadius;
 	RadialForceComponent->ForceStrength = ForceStrength;
 	RadialForceComponent->ImpulseStrength = ImpulseStrength;
+
+	SetReplicates(true);
+	SetReplicateMovement(true);
 }
 
 // Called when the game starts or when spawned
@@ -57,17 +61,11 @@ void AExplosiveBarrel::OnHealthChanged(UHealthComponent* HealthComp, float Healt
 		FVector BoostIntensity = FVector::UpVector * ImpulseStrength;
 		MeshComponent->AddImpulse(BoostIntensity, NAME_None, true);
 
-		//Spawn explosive FX at barrel location
-		UGameplayStatics::SpawnEmitterAtLocation(this, ExplodeEffect, GetActorLocation(), GetActorRotation(), FVector(5.f));
-		//Play explosion sound at barrel's location
-		UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, GetActorLocation(), GetActorRotation());
-		//Change material when barrel has exploded
-		MeshComponent->SetMaterial(0, ExplodedBarrelMaterial);
-		
-		DrawDebugSphere(GetWorld(), GetActorLocation(), RadialForceComponent->Radius, 32, FColor::Blue, false, 2.f);
-
 		RadialForceComponent->FireImpulse();
 
+		//Play explosion effects on both client and server
+		OnRep_Exploded();
+		
 		TArray<AActor*> IgnoredActors;
 		IgnoredActors.Add(this);
 		
@@ -76,4 +74,23 @@ void AExplosiveBarrel::OnHealthChanged(UHealthComponent* HealthComp, float Healt
 	}
 }
 
+void AExplosiveBarrel::OnRep_Exploded()
+{
+	//Spawn explosive FX at barrel location
+	UGameplayStatics::SpawnEmitterAtLocation(this, ExplodeEffect, GetActorLocation(), GetActorRotation(), FVector(5.f));
+	//Play explosion sound at barrel's location
+	UGameplayStatics::PlaySoundAtLocation(this, ExplosionSound, GetActorLocation(), GetActorRotation());
+	//Change material when barrel has exploded
+	MeshComponent->SetMaterial(0, ExplodedBarrelMaterial);
+		
+	//DrawDebugSphere(GetWorld(), GetActorLocation(), RadialForceComponent->Radius, 32, FColor::Blue, false, 2.f);
+}
+
+/* Replicate object for networking*/
+void AExplosiveBarrel::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AExplosiveBarrel, bExploded);
+}
 

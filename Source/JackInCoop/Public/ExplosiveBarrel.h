@@ -48,8 +48,11 @@ protected:
 	HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 
 	/* Barrel recently exploded*/
-	UPROPERTY(BlueprintReadOnly, Category = "Health")
-	bool bExploded;
+	UPROPERTY(ReplicatedUsing=OnRep_Exploded, BlueprintReadOnly, Category = "Health")
+	bool bExploded = false;
+
+	UFUNCTION()
+	void OnRep_Exploded();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* FX */

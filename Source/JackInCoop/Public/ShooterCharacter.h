@@ -90,6 +90,9 @@ protected:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName WeaponAttachSocketName;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float ZoomedWalkSpeed;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* HEALTH */

@@ -36,8 +36,9 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	/* Create camera component */
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
-
+	
 	/* Set Ironsights parameters*/
+	ZoomedWalkSpeed = 225.f;
 	/* Set Zoomed Field Of View */
 	ZoomedFOV = 65.0f;
 	/* Set interp speed when switching from DefaultFOV to ZoomedFOV*/
@@ -207,8 +208,13 @@ bool AShooterCharacter::ServerBeginZoom_Validate(const FInputActionValue& Value)
 void AShooterCharacter::MulticastBeginZoom_Implementation()
 {
 	bWantsToZoom = true;
-	/* Decrease bullet spread if player is aiming */
-	CurrentWeapon->SetBulletSpread(0.5f);	
+	if (CurrentWeapon)
+	{
+		/* Decrease bullet spread if player is aiming */
+		CurrentWeapon->SetBulletSpread(0.5f);
+		// Change character movement speed when zooming
+		GetCharacterMovement()->MaxWalkSpeed = ZoomedWalkSpeed;
+	}
 }
 
 void AShooterCharacter::ServerEndZoom_Implementation(const FInputActionValue& Value)
@@ -224,8 +230,13 @@ bool AShooterCharacter::ServerEndZoom_Validate(const FInputActionValue& Value)
 void AShooterCharacter::MulticastEndZoom_Implementation()
 {
 	bWantsToZoom = false;
-	/* Increase bullet spread if player is not aiming */
-	CurrentWeapon->SetBulletSpread(1.5f);
+	if (CurrentWeapon)
+	{
+		/* Increase bullet spread if player is not aiming */
+		CurrentWeapon->SetBulletSpread(1.5f);
+		// Reset character movement speed when not zooming
+		GetCharacterMovement()->MaxWalkSpeed = GetDefault<AShooterCharacter>()->GetCharacterMovement()->MaxWalkSpeed;
+	}
 }
 
 void AShooterCharacter::StartFire(const FInputActionValue& Value)
