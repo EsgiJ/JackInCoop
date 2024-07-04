@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ShooterCharacter.h"
 #include "GameFramework/Pawn.h"
 #include "STrackerBot.generated.h"
 
+class USphereComponent;
 class UHealthComponent;
+class USoundBase;
 
 UCLASS()
 class JACKINCOOP_API ASTrackerBot : public APawn
@@ -27,6 +30,9 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Components")
     UHealthComponent* HealthComp;
 
+	UPROPERTY(VisibleDefaultsOnly, Category = "Components")
+	USphereComponent* SphereComp;
+	
 	UFUNCTION()
 	void HandleTakeDamage(UHealthComponent* OwningHealthComp, float Health, float
 	HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
@@ -59,7 +65,23 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Explosion")
 	float ExplosionDamage;
+
+	FTimerHandle TimerHandle_SelfDamage;
+
+	void DamageSelf();
+
+	bool bStartedSelfDestruction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* SelfDestructSound;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* ExplosionSound;
+
+	float SelfDamageInterval;
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
 };

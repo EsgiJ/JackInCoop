@@ -140,7 +140,8 @@ void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Heal
 
 		DetachFromControllerPendingDestroy();
 
-		SetLifeSpan(10.0f);
+		SetLifeSpan(10.f);
+		CurrentWeapon->SetLifeSpan(10.f);
 	}
 }
 
