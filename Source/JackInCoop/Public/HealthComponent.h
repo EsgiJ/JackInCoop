@@ -26,7 +26,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HealthComponent")
 	float DefaultHealth;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_Health, BlueprintReadOnly, Category = "HealthComponent")
+	UPROPERTY(ReplicatedUsing = OnRep_Health, BlueprintReadWrite, Category = "HealthComponent")
 	float Health;
 
 	UFUNCTION()
@@ -37,4 +37,7 @@ protected:
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnHealthChangedSignature OnHealthChanged;
+
+	UFUNCTION(BlueprintCallable, Category = "HealthComponent")
+	void Heal(float HealAmount);
 };
