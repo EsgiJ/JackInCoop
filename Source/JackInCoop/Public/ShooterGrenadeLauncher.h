@@ -14,14 +14,15 @@ UCLASS()
 class JACKINCOOP_API AShooterGrenadeLauncher : public AShooterWeapon
 {
 	GENERATED_BODY()
-
+public:
+	AShooterGrenadeLauncher();
+	
+	virtual void StartFire() override;
 protected:
 	virtual void BeginPlay() override;
 	
-	virtual void Fire() override;
-
 	virtual void PlayFireEffects(FVector TracerEndPoint) override;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	UPROPERTY(Replicated, EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	TSubclassOf<AActor> GrenadeProjectile;
 };

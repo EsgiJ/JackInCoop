@@ -5,6 +5,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "HealthComponent.h"
+#include "InventoryComponent.h"
 #include "ShooterWeapon.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -37,6 +38,8 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
 	
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+
 	/* Set Ironsights parameters*/
 	ZoomedWalkSpeed = 225.f;
 	/* Set Zoomed Field Of View */
@@ -48,6 +51,7 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	WeaponAttachSocketName = "WeaponSocket";
 
 	GetCharacterMovement()->SetIsReplicated(true);
+
 
 	NetUpdateFrequency = 66.0f;
 	MinNetUpdateFrequency = 33.0f;
@@ -74,15 +78,26 @@ void AShooterCharacter::BeginPlay()
 	/* Check if player has authority to prevent multiple Current Weapon instances*/
 	if (HasAuthority())
 	{
-		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		CurrentWeapon = GetWorld()->SpawnActor<AShooterWeapon>(StarterWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParameters);
-		if (CurrentWeapon)
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		PrimaryWeapon = GetWorld()->SpawnActor<AShooterWeapon>(PrimaryWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if (PrimaryWeapon)
 		{
-			CurrentWeapon->SetOwningPawn(this);
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, WeaponAttachSocketName);
-			CurrentWeapon->SetBulletSpread(1.5f);
+			PrimaryWeapon->SetOwningPawn(this);
+			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+			InventoryComponent->AddItem(PrimaryWeapon);
 		}
+
+		SecondaryWeapon = GetWorld()->SpawnActor<AShooterWeapon>(SecondaryWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if (SecondaryWeapon)
+		{
+			SecondaryWeapon->SetOwningPawn(this);
+			SecondaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+			SecondaryWeapon->SetActorHiddenInGame(true);
+			InventoryComponent->AddItem(SecondaryWeapon);
+		}
+		CurrentWeapon = PrimaryWeapon;
 	}
 }
 
@@ -117,6 +132,9 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &AShooterCharacter::StopFire);
 
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &AShooterCharacter::StartReload);
+
+		EnhancedInputComponent->BindAction(SwitchToPrimaryWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::SwitchToPrimaryWeapon);
+		EnhancedInputComponent->BindAction(SwitchToSecondaryWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::SwitchToSecondaryWeapon);
 	}
 }
 
@@ -196,6 +214,16 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 	UnCrouch();
 }
 
+void AShooterCharacter::SwitchToPrimaryWeapon()
+{
+	SwitchWeapon(0);
+}
+
+void AShooterCharacter::SwitchToSecondaryWeapon()
+{
+	SwitchWeapon(1);
+}
+
 void AShooterCharacter::ServerBeginZoom_Implementation(const FInputActionValue& Value)
 {
 	MulticastBeginZoom();
@@ -266,6 +294,39 @@ bool AShooterCharacter::GetWantsZoom()
 	return bWantsToZoom;
 }
 
+void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
+{
+	if (!HasAuthority())
+	{
+		ServerSwitchWeapon(WeaponIndex);
+	}
+
+	if (InventoryComponent->InventoryItems.IsValidIndex(WeaponIndex))
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->SetActorHiddenInGame(true);
+		
+		CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
+		CurrentWeapon->SetOwningPawn(this);
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+		CurrentWeapon->SetActorHiddenInGame(false);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid weapon index: %d"), WeaponIndex);
+	}
+}
+
+void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
+{
+	SwitchWeapon(WeaponIndex);
+}
+
+bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex)
+{
+	return true; // Optionally add more validation logic
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /* SERVER */
 
@@ -274,6 +335,8 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME(AShooterCharacter, PrimaryWeapon);
+	DOREPLIFETIME(AShooterCharacter, SecondaryWeapon);
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, bDied);
 	DOREPLIFETIME(AShooterCharacter, bWantsToZoom);

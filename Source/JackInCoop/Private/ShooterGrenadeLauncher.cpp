@@ -5,18 +5,34 @@
 #include "ShooterCharacter.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
+
+AShooterGrenadeLauncher::AShooterGrenadeLauncher()
+{
+	PrimaryActorTick.bCanEverTick = true;
+
+	MyPawn = GetPawnOwner();
+
+	WeaponConfig.MaxAmmo = 20;
+	WeaponConfig.AmmoPerClip = 4;
+	WeaponConfig.RateOfFire = 30.f;
+	
+	SetReplicates(true);
+	SetReplicateMovement(true);
+}
 
 void AShooterGrenadeLauncher::BeginPlay()
 {
 	Super::BeginPlay();
-	MyPawn = GetPawnOwner();
-
-	WeaponConfig.TimeBetweenShots = 2.0f;
 }
 
-void AShooterGrenadeLauncher::Fire()
+void AShooterGrenadeLauncher::StartFire()
 {
-	if (MyPawn)
+	if (!HasAuthority())
+	{
+		ServerStartFire();
+	}
+	else if (MyPawn)
 	{
 		if (CanFire())
 		{
@@ -79,4 +95,15 @@ void AShooterGrenadeLauncher::PlayFireEffects(FVector TracerEndPoint)
 	{
 		UGameplayStatics::PlaySoundAtLocation(GetWorld(), RifleFireSound, this->GetActorLocation(), this->GetActorRotation());
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* SERVER */
+
+/* Replicate object for networking*/
+void AShooterGrenadeLauncher::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AShooterGrenadeLauncher, GrenadeProjectile);
 }
