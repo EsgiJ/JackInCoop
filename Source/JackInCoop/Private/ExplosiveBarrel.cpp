@@ -21,9 +21,9 @@ AExplosiveBarrel::AExplosiveBarrel()
 	RadialForceComponent = CreateDefaultSubobject<URadialForceComponent>(TEXT("RadialForceComponent"));
 	RadialForceComponent->SetupAttachment(MeshComponent);
 	
+	ImpulseStrength = 1000.0f;
 	ExplosionRadius = 500.0f;
 	ForceStrength = 1000.0f;
-	ImpulseStrength = 1000.0f;
 	ExplosionDamage = 150.0f;
 	
 	RadialForceComponent->bIgnoreOwningActor = true;

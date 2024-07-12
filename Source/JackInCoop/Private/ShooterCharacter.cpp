@@ -15,6 +15,8 @@
 #include "JackInCoop/JackInCoop.h"
 #include "Net/UnrealNetwork.h"
 
+
+
 // Sets default values
 AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveAction(nullptr), LookAction(nullptr)
 {
@@ -33,6 +35,7 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 
 	/* Create health component */
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("Health Component"));
+	HealthComponent->SetDefaultHealth(200.f);
 
 	/* Create camera component */
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
@@ -224,6 +227,49 @@ void AShooterCharacter::SwitchToSecondaryWeapon()
 	SwitchWeapon(1);
 }
 
+void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
+{
+	if (!HasAuthority())
+	{
+		ServerSwitchWeapon(WeaponIndex);
+	}
+
+	if (InventoryComponent->InventoryItems.IsValidIndex(WeaponIndex) && CanSwitchWeapon())
+	{
+		CurrentWeapon->SetCurrentState(EWeaponState::Switching);
+		
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->SetActorHiddenInGame(true);
+		
+		CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
+		CurrentWeapon->SetOwningPawn(this);
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+		CurrentWeapon->SetActorHiddenInGame(false);
+
+		CurrentWeapon->SetCurrentState(EWeaponState::Idle);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid weapon index: %d"), WeaponIndex);
+	}
+}
+
+void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
+{
+	SwitchWeapon(WeaponIndex);
+}
+
+bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex)
+{
+	return true; // Optionally add more validation logic
+}
+
+bool AShooterCharacter::CanSwitchWeapon()
+{
+	bool bStateOkToSwitch = (CurrentWeapon->GetCurrentState() == EWeaponState::Idle);
+	return bStateOkToSwitch;
+}
+
 void AShooterCharacter::ServerBeginZoom_Implementation(const FInputActionValue& Value)
 {
 	MulticastBeginZoom();
@@ -292,39 +338,6 @@ void AShooterCharacter::StartReload(const FInputActionValue& Value)
 bool AShooterCharacter::GetWantsZoom()
 {
 	return bWantsToZoom;
-}
-
-void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
-{
-	if (!HasAuthority())
-	{
-		ServerSwitchWeapon(WeaponIndex);
-	}
-
-	if (InventoryComponent->InventoryItems.IsValidIndex(WeaponIndex))
-	{
-		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		CurrentWeapon->SetActorHiddenInGame(true);
-		
-		CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
-		CurrentWeapon->SetOwningPawn(this);
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-		CurrentWeapon->SetActorHiddenInGame(false);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid weapon index: %d"), WeaponIndex);
-	}
-}
-
-void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
-{
-	SwitchWeapon(WeaponIndex);
-}
-
-bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex)
-{
-	return true; // Optionally add more validation logic
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

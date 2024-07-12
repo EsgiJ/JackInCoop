@@ -126,6 +126,8 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<AShooterWeapon>SecondaryWeaponClass;
+
+	bool CanSwitchWeapon();
 public:
 	// Sets default values for this character's properties
 	AShooterCharacter();

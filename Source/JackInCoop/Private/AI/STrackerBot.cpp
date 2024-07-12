@@ -12,6 +12,13 @@
 #include "DrawDebugHelpers.h"
 #include "Components/SphereComponent.h"
 
+static int32 DebugTrackerBotDrawing = 0;
+FAutoConsoleVariableRef CVARDebugTrackerBotDrawing(
+	TEXT("JACKINCOOP.DebugWeapons"),
+	DebugTrackerBotDrawing,
+	TEXT("Draw Debug Lines for Tracker Bots"),
+	ECVF_Cheat);
+
 // Sets default values
 ASTrackerBot::ASTrackerBot()
 {
@@ -25,7 +32,8 @@ ASTrackerBot::ASTrackerBot()
 
 	HealthComp = CreateDefaultSubobject<UHealthComponent>(TEXT("Health Component"));
 	HealthComp->OnHealthChanged.AddDynamic(this, &ASTrackerBot::HandleTakeDamage);
-
+	HealthComp->SetDefaultHealth(20.f);
+	
 	SphereComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
 	SphereComp->SetSphereRadius(200.f);
 	SphereComp->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -38,9 +46,11 @@ ASTrackerBot::ASTrackerBot()
 	RequiredDistanceToTarget = 200.f;
 
 	ExplosionDamage = 40.f;
-	ExplosionRadius = 200.f;
+	ExplosionRadius = 350.f;
 
 	SelfDamageInterval = 0.25f;
+
+	
 }
 
 // Called when the game starts or when spawned
@@ -118,7 +128,11 @@ void ASTrackerBot::SelfDestruct()
 		UGameplayStatics::ApplyRadialDamage(GetWorld(), ExplosionDamage, GetActorLocation(), ExplosionRadius,
 			nullptr, IgnoredActors, this, GetInstigatorController(), true);
 
-		DrawDebugSphere(GetWorld(), GetActorLocation(), ExplosionRadius, 16, FColor::Red, false, 1, 0, 1.f);
+		/* On-off console command*/
+		if (DebugTrackerBotDrawing > 0)
+		{
+			DrawDebugSphere(GetWorld(), GetActorLocation(), ExplosionRadius, 16, FColor::Red, false, 1, 0, 1.f);
+		}
 		
 		//Destroy actor after 2 seconds
 		SetLifeSpan(2.f);
@@ -141,12 +155,22 @@ void ASTrackerBot::Tick(float DeltaTime)
 		if (DistanceToTarget <= RequiredDistanceToTarget)
 		{
 			NextPathPoint = GetNextPathPoint();
-			DrawDebugString(GetWorld(), GetActorLocation(), "Target reached!");
+
+			/* On-off console command*/
+			if (DebugTrackerBotDrawing > 0)
+			{
+				DrawDebugString(GetWorld(), GetActorLocation(), "Target reached!");
+			}
 		}
 		else
 		{
-			DrawDebugSphere(GetWorld(), NextPathPoint, 50, 16, FColor::Yellow,false);
-			DrawDebugLine(GetWorld(), GetActorLocation(), NextPathPoint, FColor::Yellow, false);
+			/* On-off console command*/
+			if (DebugTrackerBotDrawing > 0)
+			{
+				DrawDebugSphere(GetWorld(), NextPathPoint, 50, 16, FColor::Yellow,false);
+				DrawDebugLine(GetWorld(), GetActorLocation(), NextPathPoint, FColor::Yellow, false);
+			}
+			
 			//Keep moving towards next target
 			FVector ForceDirection = NextPathPoint - GetActorLocation();
 			ForceDirection.Normalize();

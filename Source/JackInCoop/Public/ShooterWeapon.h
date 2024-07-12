@@ -14,7 +14,8 @@ enum class EWeaponState: uint8
 		Idle,
 		Firing,
 		Reloading,
-		Equipping
+		Equipping,
+		Switching
 };
 
 USTRUCT()
@@ -91,6 +92,9 @@ public:
 	float GetBulletSpread();
 	
 	float SetBulletSpread(float NewBulletSpread);
+
+	EWeaponState GetCurrentState() const;
+	void SetCurrentState(EWeaponState NewWeaponState);
 	
 
 	/** get pawn owner */

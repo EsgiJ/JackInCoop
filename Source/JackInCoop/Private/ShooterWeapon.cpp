@@ -299,6 +299,16 @@ float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
 	return BulletSpread = NewBulletSpread;
 }
 
+EWeaponState AShooterWeapon::GetCurrentState() const
+{
+	return CurrentState;
+}
+
+void AShooterWeapon::SetCurrentState(EWeaponState NewWeaponState)
+{
+	CurrentState = NewWeaponState;
+}
+
 void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)
 {
 	/* Play weapon fire effects*/

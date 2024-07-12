@@ -2,6 +2,8 @@
 
 
 #include "HealthComponent.h"
+
+#include "SGameMode.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values for this component's properties
@@ -9,9 +11,10 @@ UHealthComponent::UHealthComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 
+	bIsDead = false;
 	DefaultHealth = 100.0f;
 
-	SetIsReplicated(true);
+	SetIsReplicatedByDefault(true);
 }
 
 
@@ -29,6 +32,21 @@ void UHealthComponent::BeginPlay()
 			MyOwner->OnTakeAnyDamage.AddDynamic(this, &UHealthComponent::HandleTakeAnyDamage);
 		}
 	}
+}
+
+float UHealthComponent::GetDefaultHealth() const
+{
+	return DefaultHealth;
+}
+
+void UHealthComponent::SetDefaultHealth(float NewDefaultHealth)
+{
+	DefaultHealth = NewDefaultHealth;
+}
+
+float UHealthComponent::GetHealth() const
+{
+	return Health;
 }
 
 void UHealthComponent::OnRep_Health(float OldHealth)
@@ -51,7 +69,18 @@ void UHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, c
 
 	UE_LOG(LogTemp, Log, TEXT("Health Changed: %s"), *FString::SanitizeFloat(Health));
 
+	bIsDead = Health <= 0.f;
+	
 	OnHealthChanged.Broadcast(this, Health, Damage, DamageType, InstigatedBy, DamageCauser);
+
+	if (bIsDead)
+	{
+		ASGameMode* GM = Cast<ASGameMode>(GetWorld()->GetAuthGameMode());
+		if (GM)
+		{
+			GM->OnActorKilled.Broadcast(GetOwner(), DamageCauser, InstigatedBy);
+		}
+	}
 }
 
 void UHealthComponent::Heal(float HealAmount)
