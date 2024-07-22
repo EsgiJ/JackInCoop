@@ -250,22 +250,33 @@ void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
 
 	if (InventoryComponent->InventoryItems.IsValidIndex(WeaponIndex) && CanSwitchWeapon())
 	{
-		CurrentWeapon->SetCurrentState(EWeaponState::Switching);
-		
-		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		CurrentWeapon->SetActorHiddenInGame(true);
-		
-		CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
-		CurrentWeapon->SetOwningPawn(this);
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-		CurrentWeapon->SetActorHiddenInGame(false);
+		MulticastPlayAnimationMontage(SwitchWeaponAnim, 2.f);
 
-		CurrentWeapon->SetCurrentState(EWeaponState::Idle);
+		FTimerHandle TimerHandle_SwitchWeapon;
+		FTimerDelegate TimerDel;
+		TimerDel.BindUFunction(this, FName("FinishWeaponSwitch"), WeaponIndex);
+		
+		GetWorldTimerManager().SetTimer(TimerHandle_SwitchWeapon, TimerDel, SwitchWeaponAnim->GetPlayLength()/2, false);
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Invalid weapon index: %d"), WeaponIndex);
 	}
+}
+
+void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex)
+{
+	CurrentWeapon->SetCurrentState(EWeaponState::Switching);
+		
+	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	CurrentWeapon->SetActorHiddenInGame(true);
+		
+	CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
+	CurrentWeapon->SetOwningPawn(this);
+	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+	CurrentWeapon->SetActorHiddenInGame(false);
+
+	CurrentWeapon->SetCurrentState(EWeaponState::Idle);
 }
 
 void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
@@ -276,6 +287,11 @@ void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
 bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex)
 {
 	return true; // Optionally add more validation logic
+}
+
+void AShooterCharacter::MulticastPlayAnimationMontage_Implementation(UAnimMontage* AnimMontage, float InPlayRate)
+{
+	PlayAnimMontage(AnimMontage, InPlayRate);
 }
 
 bool AShooterCharacter::CanSwitchWeapon()

@@ -131,6 +131,12 @@ protected:
 	TSubclassOf<AShooterWeapon>SecondaryWeaponClass;
 
 	bool CanSwitchWeapon();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* ANIMS */
+	UPROPERTY(EditDefaultsOnly, Category = "Anims")
+	UAnimMontage* SwitchWeaponAnim;
+	
 public:
 	// Sets default values for this character's properties
 	AShooterCharacter();
@@ -167,12 +173,17 @@ protected:
 	/* Switch Weapon | Server */
 	UFUNCTION()
 	void SwitchWeapon(int32 WeaponIndex);
+	UFUNCTION()
+	void FinishWeaponSwitch(int32 WeaponIndex);
+	
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSwitchWeapon(int32 WeaponIndex);
 	void ServerSwitchWeapon_Implementation(int32 WeaponIndex);
 	bool ServerSwitchWeapon_Validate(int32 WeaponIndex);
-	
 
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage, float InPlayRate);
+	
 	/* Reload Weapon */
 	void StartReload(const FInputActionValue& Value);
 public:	
