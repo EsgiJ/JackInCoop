@@ -109,6 +109,8 @@ void AShooterCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	ControlRotationRep = GetControlRotationRep();
+	
 	/* Change FOV if player wants to zoom */
 	float TargetFOV = bWantsToZoom ? ZoomedFOV : DefaultFOV;
 	float NewFOV = FMath::FInterpTo(CameraComponent->FieldOfView, TargetFOV, DeltaTime, ZoomInterpSpeed);
@@ -141,8 +143,20 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	}
 }
 
+FRotator AShooterCharacter::GetControlRotationRep() const
+{
+	if (HasAuthority() || IsLocallyControlled())
+	{
+		if (GetController())
+		{
+			return GetController()->GetControlRotation();
+		}
+	}
+	return ControlRotationRep;
+}
+
 void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Health, float
-	HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
+                                        HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
 {
 	/* If already dead return and do nothing */
 	if (bDied)
@@ -353,4 +367,5 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, bDied);
 	DOREPLIFETIME(AShooterCharacter, bWantsToZoom);
+	DOREPLIFETIME(AShooterCharacter, ControlRotationRep);
 }

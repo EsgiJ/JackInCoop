@@ -14,6 +14,8 @@ UHealthComponent::UHealthComponent()
 	bIsDead = false;
 	DefaultHealth = 100.0f;
 
+	TeamNum = 255;
+	
 	SetIsReplicatedByDefault(true);
 }
 
@@ -64,21 +66,27 @@ void UHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, c
 		return;
 	}
 
+	// Prevent friendly-fire
+	if (DamageCauser != DamagedActor && IsFriendly(DamagedActor, DamageCauser))
+	{
+		return;
+	}
+	
 	/* Make sure health doesn't drop below 0 */
 	Health = FMath::Clamp(Health - Damage, 0.0f,DefaultHealth);
 
 	UE_LOG(LogTemp, Log, TEXT("Health Changed: %s"), *FString::SanitizeFloat(Health));
-
-	bIsDead = Health <= 0.f;
 	
 	OnHealthChanged.Broadcast(this, Health, Damage, DamageType, InstigatedBy, DamageCauser);
 
-	if (bIsDead)
+	if (Health <= 0.f && !bIsDead)
 	{
+		//DamagedActor is already dead
+		bIsDead = true;
 		ASGameMode* GM = Cast<ASGameMode>(GetWorld()->GetAuthGameMode());
 		if (GM)
 		{
-			GM->OnActorKilled.Broadcast(GetOwner(), DamageCauser, InstigatedBy);
+			GM->OnActorKilled.Broadcast(DamagedActor, DamageCauser, InstigatedBy);
 		}
 	}
 }
@@ -93,6 +101,26 @@ void UHealthComponent::Heal(float HealAmount)
 	UE_LOG(LogTemp, Log, TEXT("Health Changed: %s (+%s)"), *FString::SanitizeFloat(Health),  *FString::SanitizeFloat(HealAmount));
 
 	OnHealthChanged.Broadcast(this, Health, -HealAmount, nullptr, nullptr, nullptr);
+}
+
+bool UHealthComponent::IsFriendly(AActor* ActorA, AActor* ActorB)
+{
+	// Assume friendly
+	if (ActorA == nullptr || ActorB == nullptr)
+	{
+		return true;
+	}
+	
+	UHealthComponent* HealthCompA = Cast<UHealthComponent>(ActorA->GetComponentByClass(UHealthComponent::StaticClass()));
+	UHealthComponent* HealthCompB = Cast<UHealthComponent>(ActorB->GetComponentByClass(UHealthComponent::StaticClass()));
+
+	// Assume friendly
+	if (HealthCompA == nullptr || HealthCompB == nullptr)
+	{
+		return true;
+	}
+
+	return HealthCompA->TeamNum == HealthCompB->TeamNum;
 }
 
 /* Replicate object for networking*/

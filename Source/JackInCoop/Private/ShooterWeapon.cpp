@@ -115,7 +115,7 @@ void AShooterWeapon::Fire()
 				{
 					ActualDamage *= 5.0f;
 				}
-				UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), this, DamageType);
+				UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), GetOwner(), DamageType);
 
 				PlayImpactEffects(SurfaceType, HitResult.ImpactPoint);
 				

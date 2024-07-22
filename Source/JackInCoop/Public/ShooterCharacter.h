@@ -84,6 +84,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Camera", meta = (ClampMin = 0.1f, ClampMax = 100.0f))
 	float ZoomInterpSpeed;
+
+	UPROPERTY(Replicated, BlueprintReadOnly)
+	FRotator  ControlRotationRep;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* WEAPON */
@@ -169,9 +172,6 @@ protected:
 	void ServerSwitchWeapon_Implementation(int32 WeaponIndex);
 	bool ServerSwitchWeapon_Validate(int32 WeaponIndex);
 	
-	/* Fire */
-	void StartFire(const FInputActionValue& Value);
-	void StopFire(const FInputActionValue& Value);
 
 	/* Reload Weapon */
 	void StartReload(const FInputActionValue& Value);
@@ -182,7 +182,18 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	// Custom function to get control rotation
+	UFUNCTION(BlueprintCallable, Category = "Control")
+	FRotator GetControlRotationRep() const;
+	
 	virtual FVector GetPawnViewLocation() const override;
 
+	/* Fire */
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void StartFire(const FInputActionValue& Value);
+	
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void StopFire(const FInputActionValue& Value);
+	
 	bool GetWantsZoom();
 };
