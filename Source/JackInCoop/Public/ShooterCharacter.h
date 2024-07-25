@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "ShooterCharacter.generated.h"
 
+class APistol;
 class UInventoryComponent;
 class UHealthComponent;
 class UInputAction;
@@ -15,6 +16,15 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputComponent;
 class UInputMappingContext;
+
+UENUM(BlueprintType)
+enum class EWeaponType: uint8
+{
+	Unarmed,
+	Rifle,
+	Shotgun,
+	Pistol
+};
 
 UCLASS()
 class JACKINCOOP_API AShooterCharacter : public ACharacter
@@ -52,13 +62,21 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* ReloadAction;
 
-	/* Look Reload Action */
+	/* Switch To Primary Weapon Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SwitchToPrimaryWeaponAction;
 
-	/* Look Reload Action */
+	/* Switch To Secondary Weapon Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SwitchToSecondaryWeaponAction;
+
+	/* Switch To Secondary Weapon Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SwitchToPistolWeaponAction;
+
+	/* Look Reload Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* FlashlightOnOffAction;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* COMPONENTS*/
@@ -93,12 +111,22 @@ protected:
 	
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	bool bWantsToZoom;
-	
+
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
-	FName WeaponAttachSocketName;
+	FName HandAttachSocketName;
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName PrimaryWeaponAttachSocketName;
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName SecondaryWeaponAttachSocketName;
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName PistolWeaponAttachSocketName;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float ZoomedWalkSpeed;
+
+	/* current weapon type*/
+	UPROPERTY(BlueprintReadOnly)
+	EWeaponType CurrentWeaponType;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* HEALTH */
@@ -122,6 +150,9 @@ protected:
 	AShooterWeapon* SecondaryWeapon;
 
 	UPROPERTY(Replicated,BlueprintReadOnly, Category = "Inventory")
+	AShooterWeapon* PistolWeapon;
+
+	UPROPERTY(Replicated,BlueprintReadOnly, Category = "Inventory")
 	AShooterWeapon* CurrentWeapon;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
@@ -130,7 +161,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<AShooterWeapon>SecondaryWeaponClass;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
+	TSubclassOf<APistol>PistolWeaponClass;
+	
 	bool CanSwitchWeapon();
+
+	bool bFlashlightOn;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* ANIMS */
@@ -147,6 +183,8 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* INPUT METHODS */
 
+	void FlashlightOnOff();
+	
 	/* Move Input */
 	void Move(const FInputActionValue& Value);
 
@@ -159,6 +197,7 @@ protected:
 
 	void SwitchToPrimaryWeapon();
 	void SwitchToSecondaryWeapon();
+	void SwitchToPistolWeapon();
 	
 	/* Zoom | Ironsights | Server */
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -172,14 +211,14 @@ protected:
 
 	/* Switch Weapon | Server */
 	UFUNCTION()
-	void SwitchWeapon(int32 WeaponIndex);
+	void SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName);
 	UFUNCTION()
-	void FinishWeaponSwitch(int32 WeaponIndex);
+	void FinishWeaponSwitch(int32 WeaponIndex, FName HeldWeaponSocketName);
 	
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerSwitchWeapon(int32 WeaponIndex);
-	void ServerSwitchWeapon_Implementation(int32 WeaponIndex);
-	bool ServerSwitchWeapon_Validate(int32 WeaponIndex);
+	void ServerSwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName);
+	void ServerSwitchWeapon_Implementation(int32 WeaponIndex, FName HeldWeaponSocketName);
+	bool ServerSwitchWeapon_Validate(int32 WeaponIndex, FName HeldWeaponSocketName);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage, float InPlayRate);

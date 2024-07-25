@@ -8,8 +8,8 @@ public class JackInCoopTarget : TargetRules
 	public JackInCoopTarget( TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
-		DefaultBuildSettings = BuildSettingsVersion.V2;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_1;
+		DefaultBuildSettings = BuildSettingsVersion.V5;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		ExtraModuleNames.Add("JackInCoop");
 	}
 }

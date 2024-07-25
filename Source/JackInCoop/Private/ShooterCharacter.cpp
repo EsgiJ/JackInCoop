@@ -6,6 +6,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "HealthComponent.h"
 #include "InventoryComponent.h"
+#include "Pistol.h"
+#include "PropertyPathHelpers.h"
 #include "ShooterWeapon.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -51,11 +53,15 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	ZoomInterpSpeed = 20.0f;
 
 	/* Socket name to attach the weapon */
-	WeaponAttachSocketName = "WeaponSocket";
+	HandAttachSocketName = "HandWeaponSocket";
+	PrimaryWeaponAttachSocketName = "PrimaryWeaponSocket";
+	SecondaryWeaponAttachSocketName = "SecondaryWeaponSocket";
+	PistolWeaponAttachSocketName = "PistolWeaponSocket";
 
+	bFlashlightOn = false;
+	
 	GetCharacterMovement()->SetIsReplicated(true);
-
-
+	
 	NetUpdateFrequency = 66.0f;
 	MinNetUpdateFrequency = 33.0f;
 }
@@ -84,11 +90,20 @@ void AShooterCharacter::BeginPlay()
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+
+		PistolWeapon = GetWorld()->SpawnActor<APistol>(PistolWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+		if (PistolWeapon)
+		{
+			PistolWeapon->SetOwningPawn(this);
+			PistolWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, HandAttachSocketName);
+			InventoryComponent->AddItem(PistolWeapon);
+		}
+		
 		PrimaryWeapon = GetWorld()->SpawnActor<AShooterWeapon>(PrimaryWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 		if (PrimaryWeapon)
 		{
 			PrimaryWeapon->SetOwningPawn(this);
-			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, PrimaryWeaponAttachSocketName);
 			InventoryComponent->AddItem(PrimaryWeapon);
 		}
 
@@ -96,11 +111,24 @@ void AShooterCharacter::BeginPlay()
 		if (SecondaryWeapon)
 		{
 			SecondaryWeapon->SetOwningPawn(this);
-			SecondaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-			SecondaryWeapon->SetActorHiddenInGame(true);
+			SecondaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SecondaryWeaponAttachSocketName);
 			InventoryComponent->AddItem(SecondaryWeapon);
 		}
-		CurrentWeapon = PrimaryWeapon;
+		CurrentWeaponType = EWeaponType::Unarmed;
+	}
+}
+
+void AShooterCharacter::FlashlightOnOff()
+{
+	if (bFlashlightOn && CurrentWeapon)
+	{
+		CurrentWeapon->FlashlightOnOff(false);
+		bFlashlightOn = false;
+	}
+	else if(CurrentWeapon)
+	{
+		bFlashlightOn = true;
+		CurrentWeapon->FlashlightOnOff(true);
 	}
 }
 
@@ -138,8 +166,11 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &AShooterCharacter::StartReload);
 
+		EnhancedInputComponent->BindAction(SwitchToPistolWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::SwitchToPistolWeapon);
 		EnhancedInputComponent->BindAction(SwitchToPrimaryWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::SwitchToPrimaryWeapon);
 		EnhancedInputComponent->BindAction(SwitchToSecondaryWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::SwitchToSecondaryWeapon);
+
+		EnhancedInputComponent->BindAction(FlashlightOnOffAction, ETriggerEvent::Completed, this, &AShooterCharacter::FlashlightOnOff);
 	}
 }
 
@@ -231,30 +262,43 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 	UnCrouch();
 }
 
+void AShooterCharacter::SwitchToPistolWeapon()
+{
+	SwitchWeapon(0, PistolWeaponAttachSocketName);
+	CurrentWeaponType = EWeaponType::Pistol;
+}
+
 void AShooterCharacter::SwitchToPrimaryWeapon()
 {
-	SwitchWeapon(0);
+	SwitchWeapon(1, PrimaryWeaponAttachSocketName);
+	CurrentWeaponType = EWeaponType::Rifle;
 }
 
 void AShooterCharacter::SwitchToSecondaryWeapon()
 {
-	SwitchWeapon(1);
+	SwitchWeapon(2, SecondaryWeaponAttachSocketName);
+	CurrentWeaponType = EWeaponType::Shotgun;
 }
 
-void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
+void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName)
 {
 	if (!HasAuthority())
 	{
-		ServerSwitchWeapon(WeaponIndex);
+		ServerSwitchWeapon(WeaponIndex, HeldWeaponSocketName);
 	}
 
 	if (InventoryComponent->InventoryItems.IsValidIndex(WeaponIndex) && CanSwitchWeapon())
 	{
+		FlashlightOnOff();
+		if (CurrentWeapon)
+		{
+			CurrentWeapon->SetCurrentState(EWeaponState::Switching);
+		}
 		MulticastPlayAnimationMontage(SwitchWeaponAnim, 2.f);
 
 		FTimerHandle TimerHandle_SwitchWeapon;
 		FTimerDelegate TimerDel;
-		TimerDel.BindUFunction(this, FName("FinishWeaponSwitch"), WeaponIndex);
+		TimerDel.BindUFunction(this, FName("FinishWeaponSwitch"), WeaponIndex, HeldWeaponSocketName);
 		
 		GetWorldTimerManager().SetTimer(TimerHandle_SwitchWeapon, TimerDel, SwitchWeaponAnim->GetPlayLength()/2, false);
 	}
@@ -264,27 +308,28 @@ void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
 	}
 }
 
-void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex)
+void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex, FName HeldWeaponSocketName)
 {
-	CurrentWeapon->SetCurrentState(EWeaponState::Switching);
-		
-	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	CurrentWeapon->SetActorHiddenInGame(true);
-		
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HeldWeaponSocketName);
+	}
+
 	CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
 	CurrentWeapon->SetOwningPawn(this);
-	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
-	CurrentWeapon->SetActorHiddenInGame(false);
+	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandAttachSocketName);
 
 	CurrentWeapon->SetCurrentState(EWeaponState::Idle);
 }
 
-void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
+void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex, FName HeldWeaponSocketName)
 {
-	SwitchWeapon(WeaponIndex);
+	SwitchWeapon(WeaponIndex, HeldWeaponSocketName);
 }
 
-bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex)
+bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex, FName HeldWeaponSocketName)
 {
 	return true; // Optionally add more validation logic
 }
@@ -296,6 +341,10 @@ void AShooterCharacter::MulticastPlayAnimationMontage_Implementation(UAnimMontag
 
 bool AShooterCharacter::CanSwitchWeapon()
 {
+	if (!CurrentWeapon)
+	{
+		return true;
+	}
 	bool bStateOkToSwitch = (CurrentWeapon->GetCurrentState() == EWeaponState::Idle);
 	return bStateOkToSwitch;
 }
@@ -380,6 +429,7 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 
 	DOREPLIFETIME(AShooterCharacter, PrimaryWeapon);
 	DOREPLIFETIME(AShooterCharacter, SecondaryWeapon);
+	DOREPLIFETIME(AShooterCharacter, PistolWeapon);
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, bDied);
 	DOREPLIFETIME(AShooterCharacter, bWantsToZoom);

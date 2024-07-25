@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "ShooterWeapon.generated.h"
 
+class USpotLightComponent;
 class USkeletalMeshComponent;
 
 UENUM(BlueprintType)
@@ -87,9 +88,13 @@ public:
 
 	void FinishReload();
 
+	void FlashlightOnOff(bool bEnable);
+
 	bool CanReload() const;
 	
 	float GetBulletSpread();
+
+	void SetFlashlightVisibility(bool bVisible);
 	
 	float SetBulletSpread(float NewBulletSpread);
 
@@ -121,10 +126,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* MeshComponent;
 
+	UPROPERTY(VisibleDefaultsOnly)
+	USpotLightComponent* SpotLightComp;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* WEAPON */
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName MuzzleSocketName;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName FlashlightSocket;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	FName TracerBeamEndName;
@@ -141,7 +151,15 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	float BaseDamage;
+
+	UPROPERTY(Transient ,ReplicatedUsing = OnRep_FlashlightOn)
+	bool bFlashlightOn;
 	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSetFlashLightOn(bool bNewFlashLightOn);
+
+	UFUNCTION()
+	void OnRep_FlashlightOn();
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* WEAPON DATA */
 	

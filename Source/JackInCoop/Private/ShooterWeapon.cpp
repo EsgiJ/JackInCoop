@@ -4,6 +4,7 @@
 #include "ShooterWeapon.h"
 #include "DrawDebugHelpers.h"
 #include "ShooterCharacter.h"
+#include "Components/SpotLightComponent.h"
 #include "JackInCoop/JackInCoop.h"
 #include "Kismet/GameplayStatics.h"
 #include "Math/UnrealMathUtility.h"
@@ -24,10 +25,19 @@ AShooterWeapon::AShooterWeapon()
 {
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeshComponent"));
 	RootComponent = MeshComponent;
+
+	SpotLightComp = CreateDefaultSubobject<USpotLightComponent>(TEXT("SpotLightComp"));
 	
 	MuzzleSocketName = "MuzzleSocket";
 	TracerBeamEndName = "BeamEnd";
+	FlashlightSocket = "FlashlightSocket";
 
+	SpotLightComp->SetupAttachment(MeshComponent, FlashlightSocket);
+	SpotLightComp->AddLocalRotation(FRotator(0,90,0));
+	SpotLightComp->SetIntensity(20000.f);
+	SpotLightComp->SetVisibility(false);
+	bFlashlightOn = false;
+	
 	BaseDamage = 10.0f;
 	BulletSpread = 1.5f;
 
@@ -168,6 +178,21 @@ bool AShooterWeapon::ServerStartFire_Validate()
 	return true;
 }
 
+void AShooterWeapon::ServerSetFlashLightOn_Implementation(bool bNewFlashLightOn)
+{
+	FlashlightOnOff(bNewFlashLightOn);
+}
+
+bool AShooterWeapon::ServerSetFlashLightOn_Validate(bool bNewFlashLightOn)
+{
+	return true;
+}
+
+void AShooterWeapon::OnRep_FlashlightOn()
+{
+	FlashlightOnOff(bFlashlightOn);
+}
+
 void AShooterWeapon::OnRep_HitScanTrace()
 {
 	//Play cosmetic FX
@@ -279,6 +304,27 @@ void AShooterWeapon::FinishReload()
 	}
 }
 
+void AShooterWeapon::FlashlightOnOff(bool bEnable)
+{
+	// Ensure this change is replicated
+	if (!HasAuthority())
+	{
+		ServerSetFlashLightOn(bEnable);
+	}
+	
+	if (bEnable)
+	{
+		SpotLightComp->SetVisibility(true);
+		bFlashlightOn = true;
+	}
+	else
+	{
+		SpotLightComp->SetVisibility(false);
+		bFlashlightOn = false;
+	}
+
+}
+
 bool AShooterWeapon::CanReload() const
 {
 	/* Check reload conditions */
@@ -292,6 +338,12 @@ bool AShooterWeapon::CanReload() const
 float AShooterWeapon::GetBulletSpread()
 {
 	return BulletSpread;
+}
+
+void AShooterWeapon::SetFlashlightVisibility(bool bVisible)
+{
+	SpotLightComp->SetVisibility(bVisible);
+	bFlashlightOn = bVisible;
 }
 
 float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
@@ -425,5 +477,6 @@ void AShooterWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(AShooterWeapon, HitScanTrace, COND_SkipOwner);
+	DOREPLIFETIME(AShooterWeapon, bFlashlightOn);
 }
 

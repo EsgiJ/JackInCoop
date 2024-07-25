@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.3",
+	"EngineAssociation": "5.4",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -20,6 +20,26 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "PoseSearch",
+			"Enabled": true
+		},
+		{
+			"Name": "Chooser",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayInsights",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationWarping",
+			"Enabled": true
+		},
+		{
+			"Name": "MotionTrajectory",
+			"Enabled": true
 		}
 	]
 }
