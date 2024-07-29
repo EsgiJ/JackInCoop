@@ -95,7 +95,7 @@ void AShooterCharacter::BeginPlay()
 		if (PistolWeapon)
 		{
 			PistolWeapon->SetOwningPawn(this);
-			PistolWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, HandAttachSocketName);
+			PistolWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, PistolWeaponAttachSocketName);
 			InventoryComponent->AddItem(PistolWeapon);
 		}
 		
@@ -186,6 +186,23 @@ FRotator AShooterCharacter::GetControlRotationRep() const
 	return ControlRotationRep;
 }
 
+FName AShooterCharacter::GetCurrentWeaponSocketName()
+{
+	if (CurrentWeapon->IsA(PistolWeaponClass))
+	{
+		return PistolWeaponAttachSocketName;
+	}
+	else if (CurrentWeapon->IsA(PrimaryWeaponClass))
+	{
+		return PrimaryWeaponAttachSocketName;
+	}
+	else if (CurrentWeapon->IsA(SecondaryWeaponClass))
+	{
+		return SecondaryWeaponAttachSocketName;
+	}
+	return PistolWeaponAttachSocketName;
+}
+
 void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Health, float
                                         HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
 {
@@ -264,20 +281,20 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 
 void AShooterCharacter::SwitchToPistolWeapon()
 {
-	SwitchWeapon(0, PistolWeaponAttachSocketName);
+	SwitchWeapon(0, HeldWeaponAttachSocketName);
 	CurrentWeaponType = EWeaponType::Pistol;
 }
 
 void AShooterCharacter::SwitchToPrimaryWeapon()
 {
-	SwitchWeapon(1, PrimaryWeaponAttachSocketName);
+	SwitchWeapon(1, HeldWeaponAttachSocketName);
 	CurrentWeaponType = EWeaponType::Rifle;
 }
 
 void AShooterCharacter::SwitchToSecondaryWeapon()
 {
-	SwitchWeapon(2, SecondaryWeaponAttachSocketName);
-	CurrentWeaponType = EWeaponType::Shotgun;
+	SwitchWeapon(2, HeldWeaponAttachSocketName);
+	CurrentWeaponType = EWeaponType::Rifle;
 }
 
 void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName)
@@ -322,6 +339,7 @@ void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex, FName HeldWeaponSo
 	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandAttachSocketName);
 
 	CurrentWeapon->SetCurrentState(EWeaponState::Idle);
+	HeldWeaponAttachSocketName = GetCurrentWeaponSocketName();
 }
 
 void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex, FName HeldWeaponSocketName)

@@ -120,7 +120,11 @@ protected:
 	FName SecondaryWeaponAttachSocketName;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName PistolWeaponAttachSocketName;
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName HeldWeaponAttachSocketName;
 
+	FName GetCurrentWeaponSocketName();
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float ZoomedWalkSpeed;
 
