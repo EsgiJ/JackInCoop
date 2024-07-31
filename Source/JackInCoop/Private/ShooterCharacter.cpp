@@ -7,7 +7,7 @@
 #include "HealthComponent.h"
 #include "InventoryComponent.h"
 #include "Pistol.h"
-#include "PropertyPathHelpers.h"
+#include "SGameMode.h"
 #include "ShooterWeapon.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -186,7 +186,12 @@ FRotator AShooterCharacter::GetControlRotationRep() const
 	return ControlRotationRep;
 }
 
-FName AShooterCharacter::GetCurrentWeaponSocketName()
+UHealthComponent* AShooterCharacter::GetHealthComponent() const
+{
+	return HealthComponent;
+}
+
+FName AShooterCharacter::GetCurrentWeaponSocketName() const
 {
 	if (CurrentWeapon->IsA(PistolWeaponClass))
 	{
@@ -204,7 +209,7 @@ FName AShooterCharacter::GetCurrentWeaponSocketName()
 }
 
 void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Health, float
-                                        HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
+HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
 {
 	/* If already dead return and do nothing */
 	if (bDied)
@@ -223,9 +228,30 @@ void AShooterCharacter::OnHealthChanged(UHealthComponent* HealthComp, float Heal
 
 		DetachFromControllerPendingDestroy();
 
+		// Ragdoll Logic
+		FTimerHandle TimerHandle_Ragdoll;
+		GetWorldTimerManager().SetTimer(TimerHandle_Ragdoll, this, &AShooterCharacter::ApplyRagdoll, 0.5f, false);
+		
 		SetLifeSpan(10.f);
-		CurrentWeapon->SetLifeSpan(10.f);
+		if (PrimaryWeapon)
+		{
+			PrimaryWeapon->SetLifeSpan(10.f);
+		}
+		if (SecondaryWeapon)
+		{
+			SecondaryWeapon->SetLifeSpan(10.f);
+		}
+		if (PistolWeapon)
+		{
+			PistolWeapon->SetLifeSpan(10.f);
+		}
 	}
+}
+
+void AShooterCharacter::ApplyRagdoll()
+{
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
 }
 
 /* Get pawn view location to calculate shot direction */
@@ -311,7 +337,7 @@ void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketNa
 		{
 			CurrentWeapon->SetCurrentState(EWeaponState::Switching);
 		}
-		MulticastPlayAnimationMontage(SwitchWeaponAnim, 2.f);
+		MulticastPlayAnimationMontage(SwitchWeaponAnim, 1.f);
 
 		FTimerHandle TimerHandle_SwitchWeapon;
 		FTimerDelegate TimerDel;
@@ -357,7 +383,7 @@ void AShooterCharacter::MulticastPlayAnimationMontage_Implementation(UAnimMontag
 	PlayAnimMontage(AnimMontage, InPlayRate);
 }
 
-bool AShooterCharacter::CanSwitchWeapon()
+bool AShooterCharacter::CanSwitchWeapon() const
 {
 	if (!CurrentWeapon)
 	{
@@ -429,12 +455,15 @@ void AShooterCharacter::StopFire(const FInputActionValue& Value)
 
 void AShooterCharacter::StartReload(const FInputActionValue& Value)
 {
-	CurrentWeapon->StartReload();
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->StartReload();
+	}
 }
 
-bool AShooterCharacter::GetWantsZoom()
+bool AShooterCharacter::GetWantsZoom() const
 {
-	return bWantsToZoom;
+	return bWantsToZoom;	
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -449,6 +478,7 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(AShooterCharacter, SecondaryWeapon);
 	DOREPLIFETIME(AShooterCharacter, PistolWeapon);
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
+	DOREPLIFETIME(AShooterCharacter, CurrentWeaponType);
 	DOREPLIFETIME(AShooterCharacter, bDied);
 	DOREPLIFETIME(AShooterCharacter, bWantsToZoom);
 	DOREPLIFETIME(AShooterCharacter, ControlRotationRep);

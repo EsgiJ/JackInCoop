@@ -38,11 +38,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* ShooterMappingContext;
 
-	/* Move Move Action */
+	/* Move Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
 
-	/* Look Look Action */
+	/* Look Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
@@ -91,7 +91,8 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UHealthComponent* HealthComponent;
-	
+
+protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* CAMERA */
 	
@@ -123,13 +124,13 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName HeldWeaponAttachSocketName;
 
-	FName GetCurrentWeaponSocketName();
+	FName GetCurrentWeaponSocketName() const;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float ZoomedWalkSpeed;
 
 	/* current weapon type*/
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(Replicated, BlueprintReadOnly)
 	EWeaponType CurrentWeaponType;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,6 +142,8 @@ protected:
 	/* Pawn recently died*/
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Health")
 	bool bDied;
+
+	void ApplyRagdoll();
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* Inventory */
@@ -168,7 +171,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
 	TSubclassOf<APistol>PistolWeaponClass;
 	
-	bool CanSwitchWeapon();
+	bool CanSwitchWeapon() const;
 
 	bool bFlashlightOn;
 
@@ -249,5 +252,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Player")
 	void StopFire(const FInputActionValue& Value);
 	
-	bool GetWantsZoom();
+	bool GetWantsZoom() const;
+
+	UHealthComponent* GetHealthComponent() const;
 };

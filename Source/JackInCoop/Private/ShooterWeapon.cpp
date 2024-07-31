@@ -3,6 +3,7 @@
 
 #include "ShooterWeapon.h"
 #include "DrawDebugHelpers.h"
+#include "HealthComponent.h"
 #include "ShooterCharacter.h"
 #include "Components/SpotLightComponent.h"
 #include "JackInCoop/JackInCoop.h"
@@ -33,16 +34,14 @@ AShooterWeapon::AShooterWeapon()
 	FlashlightSocket = "FlashlightSocket";
 
 	SpotLightComp->SetupAttachment(MeshComponent, FlashlightSocket);
-	SpotLightComp->AddLocalRotation(FRotator(0,90,0));
-	SpotLightComp->SetIntensity(20000.f);
-	SpotLightComp->SetVisibility(false);
+
 	bFlashlightOn = false;
 	
 	BaseDamage = 10.0f;
 	BulletSpread = 1.5f;
 
 	CurrentState = EWeaponState::Idle;
-
+	
 	SetReplicates(true);
 
 	NetUpdateFrequency = 66.0f;
@@ -58,6 +57,10 @@ void AShooterWeapon::PostInitializeComponents()
 		CurrentAmmoInClip = WeaponConfig.AmmoPerClip;
 		CurrentAmmo = WeaponConfig.AmmoPerClip * WeaponConfig.InitialClips;
 	}
+
+	SpotLightComp->AddLocalRotation(FRotator(0,90,0));
+	SpotLightComp->SetIntensity(20000.f);
+	SpotLightComp->SetVisibility(false);
 }
 
 void AShooterWeapon::BeginPlay()
@@ -65,6 +68,7 @@ void AShooterWeapon::BeginPlay()
 	Super::BeginPlay();
 	
 	//MyPawn = GetPawnOwner();
+	SetupHitReactionMontages();
 	MyPawn = Cast<AShooterCharacter>(GetOwner());
 }
 
@@ -130,7 +134,43 @@ void AShooterWeapon::Fire()
 				PlayImpactEffects(SurfaceType, HitResult.ImpactPoint);
 				
 				TracerEndPoint = HitResult.ImpactPoint;
-				
+
+				// Hit Reaction logic
+				ShotDirection.Normalize();
+				float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(-1 * ShotDirection, HitActor->GetActorForwardVector())));
+				// Sağ veya sol tarafta olduğunu belirlemek için çapraz çarpımı kullan
+				FVector CrossProduct = FVector::CrossProduct(HitActor->GetActorForwardVector(), ShotDirection);
+				bool bFromRight = CrossProduct.Z < 0;
+
+				// Açıya göre yön belirleme
+				FString HitDirection;
+				if (Angle <= 45.0f)
+				{
+					HitDirection = "Front";
+				}
+				else if (Angle >= 135.0f)
+				{
+					HitDirection = "Back";
+				}
+				else
+				{
+					HitDirection = bFromRight ? "Right" : "Left";
+				}
+				// Hasar miktarına göre hit reaction tipi
+				FString HitType;
+				if (ActualDamage < 20.0f)
+				{
+					HitType = "Light";
+				}
+				else if (ActualDamage < 40.0f)
+				{
+					HitType = "Med";
+				}
+				else
+				{
+					HitType = "Heavy";
+				}
+				PlayHitReact(HitActor, HitDirection, HitType);
 			}
 			/* On-off console command*/
 			if (DebugWeaponDrawing > 0)
@@ -451,6 +491,112 @@ float AShooterWeapon::PlayAnimationMontage(UAnimMontage* AnimMontage)
 		}
 	}
 	return Duration;
+}
+
+void AShooterWeapon::PlayHitReact(AActor* DamagedActor, const FString& HitDirection, const FString& HitType)
+{
+	UAnimMontage* HitMontageToPlay = nullptr;
+	UAnimMontage* DeathMontageToPlay = nullptr;
+
+	if (HitDirection == "Front")
+	{
+		if (HitType == "Light")
+		{
+			if (FrontHitLightMontages.Num() > 0)
+			{
+				int32 RandomIndex = FMath::RandRange(0, FrontHitLightMontages.Num() - 1);
+				HitMontageToPlay = FrontHitLightMontages[RandomIndex];
+			}
+		}
+		else if (HitType == "Med")
+		{
+			if (FrontHitMediumMontages.Num() > 0)
+			{
+				int32 RandomIndex = FMath::RandRange(0, FrontHitMediumMontages.Num() - 1);
+				HitMontageToPlay = FrontHitMediumMontages[RandomIndex];
+			}
+		}
+		else if (HitType == "Heavy")
+		{
+			HitMontageToPlay = FrontHitHeavyMontage;
+		}
+		
+		if (FrontDeathMontages.Num() > 0)
+		{
+			int32 RandomIndex = FMath::RandRange(0, FrontDeathMontages.Num() - 1);
+			DeathMontageToPlay = FrontDeathMontages[RandomIndex];
+		}
+	}
+	else if (HitDirection == "Back")
+	{
+		if (HitType == "Light")
+		{	
+			HitMontageToPlay = BackHitLightMontage;
+		}
+		else if (HitType == "Med")
+		{
+			HitMontageToPlay = BackHitMedMontage;
+		}
+		DeathMontageToPlay = BackDeathMontage;
+	}
+	else if (HitDirection == "Left")
+	{
+		if (HitType == "Light")
+		{	
+			HitMontageToPlay = LeftHitLightMontage;
+		}
+		else if (HitType == "Med" || HitType == "Heavy")
+		{
+			HitMontageToPlay = LeftHitMedMontage;
+		}
+		DeathMontageToPlay = LeftDeathMontage;
+	}
+	else if (HitDirection == "Right")
+	{
+		if (HitType == "Light")
+		{	
+			HitMontageToPlay = RightHitLightMontage;
+		}
+		else if (HitType == "Med" || HitType == "Heavy")
+		{
+			HitMontageToPlay = RightHitMedMontage;
+		}
+		DeathMontageToPlay = RightDeathMontage;
+	}
+	// Diğer yönler için de benzer mantık...
+
+	if (HitMontageToPlay)
+	{
+		AShooterCharacter* DamagedShooterCharacter = Cast<AShooterCharacter>(DamagedActor);
+		if (DamagedShooterCharacter)
+		{
+			if(DamagedShooterCharacter->GetHealthComponent()->GetHealth() <= 0.f && DeathMontageToPlay)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Flaggg"));
+				DamagedShooterCharacter->PlayAnimMontage(DeathMontageToPlay);
+			}
+
+			if (DamagedShooterCharacter->GetHealthComponent()->GetHealth() > 0)
+			{
+				DamagedShooterCharacter->PlayAnimMontage(HitMontageToPlay);
+			}
+		}
+	}
+}
+
+void AShooterWeapon::SetupHitReactionMontages()
+{
+	FrontHitLightMontages.Add(FrontHitLightMontage_01);
+	FrontHitLightMontages.Add(FrontHitLightMontage_02);
+	FrontHitLightMontages.Add(FrontHitLightMontage_03);
+	FrontHitLightMontages.Add(FrontHitLightMontage_04);
+
+	FrontHitMediumMontages.Add(FrontHitMedMontage_01);
+	FrontHitMediumMontages.Add(FrontHitMedMontage_02);
+
+	FrontDeathMontages.Add(FrontDeathMontage_01);
+	FrontDeathMontages.Add(FrontDeathMontage_02);
+	FrontDeathMontages.Add(FrontDeathMontage_03);
 }
 
 void AShooterWeapon::ServerPlayAnimationMontage_Implementation(UAnimMontage* AnimMontage)

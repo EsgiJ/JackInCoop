@@ -65,7 +65,6 @@ void UHealthComponent::HandleTakeAnyDamage(AActor* DamagedActor, float Damage, c
 	{
 		return;
 	}
-
 	// Prevent friendly-fire
 	if (DamageCauser != DamagedActor && IsFriendly(DamagedActor, DamageCauser))
 	{

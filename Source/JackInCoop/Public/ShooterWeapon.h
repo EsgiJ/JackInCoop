@@ -241,12 +241,78 @@ protected:
 	/* ANIMS */
 	
 	float PlayAnimationMontage(UAnimMontage* AnimMontage);
-
+	
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage);
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerPlayAnimationMontage(UAnimMontage* AnimMontage);
+
+	void PlayHitReact(AActor* DamagedActor, const FString& HitDirection, const FString& HitType);
+
+	void SetupHitReactionMontages();
+	
+	TArray<UAnimMontage*> FrontHitLightMontages;
+	TArray<UAnimMontage*> FrontHitMediumMontages;
+	TArray<UAnimMontage*> FrontDeathMontages;
+
+	/* Front Light Hit Reactions */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitLightMontage_01;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitLightMontage_02;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitLightMontage_03;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitLightMontage_04;
+	
+	/* Front Medium Hit Reactions */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitMedMontage_01;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitMedMontage_02;
+	
+	/* Front Heavy Hit Reaction */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontHitHeavyMontage;
+
+	/* Back Hit Reactions */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* BackHitLightMontage;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* BackHitMedMontage;
+
+	/* Left Hit Reactions */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHitLightMontage;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHitMedMontage;
+
+	/* Right Hit Reactions */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHitLightMontage;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHitMedMontage;
+
+	/* Front Death Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontDeathMontage_01;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontDeathMontage_02;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* FrontDeathMontage_03;
+
+	/* Back Death Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* BackDeathMontage;
+
+	/* Left Death Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftDeathMontage;
+
+	/* Right Death Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightDeathMontage;
 	
 	/* reload animation */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
