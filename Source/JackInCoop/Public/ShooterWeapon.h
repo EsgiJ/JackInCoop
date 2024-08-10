@@ -248,8 +248,10 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerPlayAnimationMontage(UAnimMontage* AnimMontage);
 
-	void PlayHitReact(AActor* DamagedActor, const FString& HitDirection, const FString& HitType);
+	void PlayShooterCharacterHitReact(AActor* DamagedActor, const FString& HitDirection, const FString& HitType);
 
+	void PlayZombieHitReact(AActor* DamagedActor, const FString& HitDirection, const EPhysicalSurface SurfaceType);
+	
 	void SetupHitReactionMontages();
 	
 	TArray<UAnimMontage*> FrontHitLightMontages;
@@ -313,6 +315,30 @@ protected:
 	/* Right Death Animation */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* RightDeathMontage;
+
+	/* Zombie Head Hit Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ZombieHeadHitReactMontage;
+
+	/* Zombie Left Leg Hit Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ZombieLeftLegHitReactMontage;
+
+	/* Zombie Right Leg Hit Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ZombieRightLegHitReactMontage;
+
+	/* Zombie Left Shoulder Hit Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ZombieLeftShoulderHitReactMontage;
+
+	/* Zombie Right Shoulder Hit Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ZombieRightShoulderHitReactMontage;
+
+	/* Zombie Back Hit Animation */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ZombieBackHitMontage;
 	
 	/* reload animation */
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")

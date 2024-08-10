@@ -92,6 +92,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UHealthComponent* HealthComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPawnNoiseEmitterComponent* NoiseEmitterComp;
+
 protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* CAMERA */
@@ -179,6 +182,10 @@ protected:
 	/* ANIMS */
 	UPROPERTY(EditDefaultsOnly, Category = "Anims")
 	UAnimMontage* SwitchWeaponAnim;
+
+	float LastNoiseLoudness;
+
+	float LastMakeNoiseTime;
 	
 public:
 	// Sets default values for this character's properties
@@ -229,6 +236,13 @@ protected:
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage, float InPlayRate);
+	UFUNCTION(Server,Reliable,WithValidation)
+	void ServerPlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerApplyRagdoll();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastApplyRagdoll();
 	
 	/* Reload Weapon */
 	void StartReload(const FInputActionValue& Value);
@@ -255,4 +269,16 @@ public:
 	bool GetWantsZoom() const;
 
 	UHealthComponent* GetHealthComponent() const;
+
+	bool IsAlive() const;
+
+	/* MakeNoise hook to trigger AI noise emitting (Loudness between 0.0-1.0)  */
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	void MakePawnNoise(float Loudness);
+	
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	float GetLastNoiseLoudness();
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+	float GetLastMakeNoiseTime();
 };

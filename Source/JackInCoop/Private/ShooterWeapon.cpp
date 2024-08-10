@@ -5,6 +5,7 @@
 #include "DrawDebugHelpers.h"
 #include "HealthComponent.h"
 #include "ShooterCharacter.h"
+#include "AI/Zombie.h"
 #include "Components/SpotLightComponent.h"
 #include "JackInCoop/JackInCoop.h"
 #include "Kismet/GameplayStatics.h"
@@ -90,7 +91,10 @@ void AShooterWeapon::Fire()
 			}
 			/* Decrease ammo count */
 			UseAmmo();
-
+			
+			/* Make noise while firing */
+			
+			MyPawn->MakePawnNoise(2.f);
 			/* Calculate shot direction */
 			FVector ActorEyesLocation;
 			FRotator ActorEyesRotation;
@@ -124,10 +128,18 @@ void AShooterWeapon::Fire()
 
 				float ActualDamage = BaseDamage;
 				
-				/* If surface type is SURFACE_FLESHVULNERABLE(for instance headshot) multiply base damage by 5*/
-				if (SurfaceType == SURFACE_FLESHVULNERABLE)
+				/* If surface type is SURFACE_HEAD(for instance headshot) multiply base damage by 5*/
+				if (SurfaceType == SURFACE_FLESHHEAD)
 				{
-					ActualDamage *= 5.0f;
+					ActualDamage *= 5.f;
+				}
+				else if (SurfaceType == SURFACE_FLESHDEFAULT)
+				{
+					ActualDamage *= 1.f;
+				}
+				else
+				{
+					ActualDamage *= 0.75f;
 				}
 				UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), GetOwner(), DamageType);
 
@@ -135,7 +147,6 @@ void AShooterWeapon::Fire()
 				
 				TracerEndPoint = HitResult.ImpactPoint;
 
-				// Hit Reaction logic
 				ShotDirection.Normalize();
 				float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(-1 * ShotDirection, HitActor->GetActorForwardVector())));
 				// Sağ veya sol tarafta olduğunu belirlemek için çapraz çarpımı kullan
@@ -170,7 +181,16 @@ void AShooterWeapon::Fire()
 				{
 					HitType = "Heavy";
 				}
-				PlayHitReact(HitActor, HitDirection, HitType);
+				
+				// Shooter Character Hit Reaction logic
+				if (Cast<AShooterCharacter>(HitActor))
+				{
+					PlayShooterCharacterHitReact(HitActor, HitDirection, HitType);
+				}
+				else if (Cast<AZombie>(HitActor))
+				{
+					PlayZombieHitReact(HitActor, HitDirection, SurfaceType);	
+				}
 			}
 			/* On-off console command*/
 			if (DebugWeaponDrawing > 0)
@@ -448,7 +468,19 @@ void AShooterWeapon::PlayImpactEffects(EPhysicalSurface SurfaceType, FVector Imp
 	case SURFACE_FLESHDEFAULT:
 		SelectedEffect = FleshImpactEffect;
 		break;
-	case SURFACE_FLESHVULNERABLE:
+	case SURFACE_FLESHHEAD:
+		SelectedEffect = FleshImpactEffect;
+		break;
+	case SURFACE_FLESHLEFTLEG:
+		SelectedEffect = FleshImpactEffect;
+		break;
+	case SURFACE_FLESHRIGHTLEG:
+		SelectedEffect = FleshImpactEffect;
+		break;
+	case SURFACE_FLESHLEFTSHOULDER:
+		SelectedEffect = FleshImpactEffect;
+		break;
+	case SURFACE_FLESHRIGHTSHOULDER:
 		SelectedEffect = FleshImpactEffect;
 		break;
 	default:
@@ -493,7 +525,7 @@ float AShooterWeapon::PlayAnimationMontage(UAnimMontage* AnimMontage)
 	return Duration;
 }
 
-void AShooterWeapon::PlayHitReact(AActor* DamagedActor, const FString& HitDirection, const FString& HitType)
+void AShooterWeapon::PlayShooterCharacterHitReact(AActor* DamagedActor, const FString& HitDirection, const FString& HitType)
 {
 	UAnimMontage* HitMontageToPlay = nullptr;
 	UAnimMontage* DeathMontageToPlay = nullptr;
@@ -563,7 +595,6 @@ void AShooterWeapon::PlayHitReact(AActor* DamagedActor, const FString& HitDirect
 		}
 		DeathMontageToPlay = RightDeathMontage;
 	}
-	// Diğer yönler için de benzer mantık...
 
 	if (HitMontageToPlay)
 	{
@@ -572,13 +603,88 @@ void AShooterWeapon::PlayHitReact(AActor* DamagedActor, const FString& HitDirect
 		{
 			if(DamagedShooterCharacter->GetHealthComponent()->GetHealth() <= 0.f && DeathMontageToPlay)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Flaggg"));
 				DamagedShooterCharacter->PlayAnimMontage(DeathMontageToPlay);
+				DamagedShooterCharacter->ServerPlayAnimMontage_Implementation(DeathMontageToPlay, 1.f);
 			}
 
 			if (DamagedShooterCharacter->GetHealthComponent()->GetHealth() > 0)
 			{
 				DamagedShooterCharacter->PlayAnimMontage(HitMontageToPlay);
+				DamagedShooterCharacter->ServerPlayAnimMontage_Implementation(HitMontageToPlay, 1.f);
+			}
+		}
+	}
+}
+
+void AShooterWeapon::PlayZombieHitReact(AActor* DamagedActor, const FString& HitDirection, const EPhysicalSurface SurfaceType)
+{
+	UAnimMontage* HitMontageToPlay = nullptr;
+	UAnimMontage* DeathMontageToPlay = nullptr;
+	
+	if (HitDirection != "Back")
+	{
+		switch (SurfaceType)
+		{
+		case SURFACE_FLESHHEAD:
+			HitMontageToPlay = ZombieHeadHitReactMontage;
+			break;
+		case SURFACE_FLESHLEFTLEG:
+			HitMontageToPlay = ZombieLeftLegHitReactMontage;
+			break;
+		case SURFACE_FLESHRIGHTLEG:
+			HitMontageToPlay = ZombieRightLegHitReactMontage;
+			break;
+		case SURFACE_FLESHLEFTSHOULDER:
+			HitMontageToPlay = ZombieLeftShoulderHitReactMontage;
+			break;
+		case SURFACE_FLESHRIGHTSHOULDER:
+			HitMontageToPlay = ZombieRightShoulderHitReactMontage;
+			break;
+		case SURFACE_FLESHDEFAULT:
+			HitMontageToPlay = ZombieLeftShoulderHitReactMontage;
+			break;
+		default:
+			HitMontageToPlay = ZombieRightShoulderHitReactMontage;
+		}
+	}
+	
+	if (HitDirection == "Front")
+	{
+		if (FrontDeathMontages.Num() > 0)
+		{
+			int32 RandomIndex = FMath::RandRange(0, FrontDeathMontages.Num() - 1);
+			DeathMontageToPlay = FrontDeathMontages[RandomIndex];
+		}
+	}
+	else if (HitDirection == "Back")
+	{
+		HitMontageToPlay = ZombieBackHitMontage;
+		DeathMontageToPlay = BackDeathMontage;
+	}
+	else if (HitDirection == "Left")
+	{
+		DeathMontageToPlay = LeftDeathMontage;
+	}
+	else if (HitDirection == "Right")
+	{
+		DeathMontageToPlay = RightDeathMontage;
+	}
+
+	if (HitMontageToPlay)
+	{
+		AZombie* DamagedZombie = Cast<AZombie>(DamagedActor);
+		if (DamagedZombie)
+		{
+			if(DamagedZombie->GetHealthComponent()->GetHealth() <= 0.f && DeathMontageToPlay)
+			{
+				DamagedZombie->PlayAnimMontage(DeathMontageToPlay);
+				DamagedZombie->ServerPlayAnimMontage_Implementation(DeathMontageToPlay, 1.f);
+			}
+
+			if (DamagedZombie->GetHealthComponent()->GetHealth() > 0)
+			{
+				DamagedZombie->PlayAnimMontage(HitMontageToPlay);
+				DamagedZombie->ServerPlayAnimMontage_Implementation(HitMontageToPlay, 3.f);
 			}
 		}
 	}

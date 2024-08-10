@@ -7,10 +7,10 @@
 #include "HealthComponent.h"
 #include "InventoryComponent.h"
 #include "Pistol.h"
-#include "SGameMode.h"
 #include "ShooterWeapon.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -62,6 +62,13 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	
 	GetCharacterMovement()->SetIsReplicated(true);
 	
+	/* Noise emitter for both players and enemies. This keeps track of MakeNoise data and is used by the pawnsensing component in our Zombie class */
+	NoiseEmitterComp = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("NoiseEmitterComp"));
+ 
+	/* Don't collide with camera checks to keep 3rd person camera at position when zombies or other players are standing behind us */
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+
 	NetUpdateFrequency = 66.0f;
 	MinNetUpdateFrequency = 33.0f;
 }
@@ -103,8 +110,9 @@ void AShooterCharacter::BeginPlay()
 		if (PrimaryWeapon)
 		{
 			PrimaryWeapon->SetOwningPawn(this);
-			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, PrimaryWeaponAttachSocketName);
+			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, HandAttachSocketName);
 			InventoryComponent->AddItem(PrimaryWeapon);
+			CurrentWeapon= PrimaryWeapon;
 		}
 
 		SecondaryWeapon = GetWorld()->SpawnActor<AShooterWeapon>(SecondaryWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
@@ -114,7 +122,7 @@ void AShooterCharacter::BeginPlay()
 			SecondaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SecondaryWeaponAttachSocketName);
 			InventoryComponent->AddItem(SecondaryWeapon);
 		}
-		CurrentWeaponType = EWeaponType::Unarmed;
+		CurrentWeaponType = EWeaponType::Rifle;
 	}
 }
 
@@ -143,6 +151,11 @@ void AShooterCharacter::Tick(float DeltaTime)
 	float TargetFOV = bWantsToZoom ? ZoomedFOV : DefaultFOV;
 	float NewFOV = FMath::FInterpTo(CameraComponent->FieldOfView, TargetFOV, DeltaTime, ZoomInterpSpeed);
 	CameraComponent->SetFieldOfView(NewFOV);
+
+	if (GetVelocity().Size() > 450.f)
+	{
+		MakePawnNoise(1.f);
+	}
 }
 
 // Called to bind functionality to input
@@ -227,10 +240,10 @@ HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy
 		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 		DetachFromControllerPendingDestroy();
-
+		
 		// Ragdoll Logic
 		FTimerHandle TimerHandle_Ragdoll;
-		GetWorldTimerManager().SetTimer(TimerHandle_Ragdoll, this, &AShooterCharacter::ApplyRagdoll, 0.5f, false);
+		GetWorldTimerManager().SetTimer(TimerHandle_Ragdoll, this, &AShooterCharacter::ServerApplyRagdoll, 0.5f, false);
 		
 		SetLifeSpan(10.f);
 		if (PrimaryWeapon)
@@ -250,6 +263,10 @@ HealthDelta,const class UDamageType* DamageType, class AController* InstigatedBy
 
 void AShooterCharacter::ApplyRagdoll()
 {
+	if (!HasAuthority())
+	{
+			ServerApplyRagdoll();
+	}
 	GetMesh()->SetSimulatePhysics(true);
 	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
 }
@@ -453,6 +470,31 @@ void AShooterCharacter::StopFire(const FInputActionValue& Value)
 	}
 }
 
+void AShooterCharacter::ServerPlayAnimMontage_Implementation(UAnimMontage* AnimMontage, float InPlayRate)
+{
+	MulticastPlayAnimationMontage(AnimMontage, InPlayRate);
+}
+
+bool AShooterCharacter::ServerPlayAnimMontage_Validate(UAnimMontage* AnimMontage, float InPlayRate)
+{
+	return true;
+}
+
+void AShooterCharacter::ServerApplyRagdoll_Implementation()
+{
+	MulticastApplyRagdoll();
+}
+
+bool AShooterCharacter::ServerApplyRagdoll_Validate()
+{
+	return true;
+}
+
+void AShooterCharacter::MulticastApplyRagdoll_Implementation()
+{
+	ApplyRagdoll();
+}
+
 void AShooterCharacter::StartReload(const FInputActionValue& Value)
 {
 	if (CurrentWeapon)
@@ -464,6 +506,34 @@ void AShooterCharacter::StartReload(const FInputActionValue& Value)
 bool AShooterCharacter::GetWantsZoom() const
 {
 	return bWantsToZoom;	
+}
+
+bool AShooterCharacter::IsAlive() const
+{
+	return HealthComponent->GetHealth() > 0;
+}
+
+void AShooterCharacter::MakePawnNoise(float Loudness)
+{
+	if (HasAuthority())
+	{
+		/* Make noise to be picked up by PawnSensingComponent by the enemy pawns */
+		MakeNoise(Loudness, this, GetActorLocation());
+	}
+
+	LastNoiseLoudness = Loudness;
+	LastMakeNoiseTime = GetWorld()->GetTimeSeconds();
+}
+
+float AShooterCharacter::GetLastNoiseLoudness()
+{
+	return LastNoiseLoudness;
+}
+
+
+float AShooterCharacter::GetLastMakeNoiseTime()
+{
+	return LastMakeNoiseTime;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
