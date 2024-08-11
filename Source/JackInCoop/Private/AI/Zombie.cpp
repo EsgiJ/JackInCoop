@@ -2,12 +2,14 @@
 
 
 #include "AI/Zombie.h"
+
 #include "HealthComponent.h"
 #include "ShooterCharacter.h"
 #include "AI/ZombieAIController.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/AudioComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "JackInCoop/JackInCoop.h"
@@ -35,6 +37,22 @@ AZombie::AZombie()
 	GetCapsuleComponent()->SetCapsuleHalfHeight(96.0f, false);
 	GetCapsuleComponent()->SetCapsuleRadius(42.0f);
 
+	LeftAttackCollisionBoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("LeftHandAttackCollisionBoxComponent"));
+	LeftAttackCollisionBoxComp->SetupAttachment(GetMesh(), FName("LeftHandCollisionSocket"));
+	LeftAttackCollisionBoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LeftAttackCollisionBoxComp->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	LeftAttackCollisionBoxComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	LeftAttackCollisionBoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	LeftAttackCollisionBoxComp->SetBoxExtent(FVector(32.f,32.f,32.f));
+
+	RightAttackCollisionBoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("RightHandAttackCollisionBoxComponent"));
+	RightAttackCollisionBoxComp->SetupAttachment(GetMesh(), FName("RightHandCollisionSocket"));
+	RightAttackCollisionBoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	RightAttackCollisionBoxComp->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	RightAttackCollisionBoxComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	RightAttackCollisionBoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	RightAttackCollisionBoxComp->SetBoxExtent(FVector(32.f,32.f,32.f));
+	
 	AudioLoopComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("ZombieLoopedSoundComp"));
 	AudioLoopComponent->bAutoActivate = false;
 	AudioLoopComponent->bAutoDestroy = false;
@@ -54,14 +72,19 @@ AZombie::AZombie()
 	NetUpdateFrequency = 66.0f;
 	MinNetUpdateFrequency = 33.0f;
 	CurrentZombieBehavior = EZombieBehavior::Patrolling;
+	AttackDamage = 20.f;
 }
 
 // Called when the game starts or when spawned
 void AZombie::BeginPlay()
 {
 	Super::BeginPlay();
-	GetCharacterMovement()->MaxWalkSpeed = 150.f;
 	
+	GetCharacterMovement()->MaxWalkSpeed = 100.f;
+
+	SetupAudios();
+	SetupMontages();
+	BroadcastUpdateAudioLoop(false);
 	if (HealthComponent)
 	{
 		HealthComponent->OnHealthChanged.AddDynamic(this, &AZombie::OnHealthChanged);
@@ -71,6 +94,15 @@ void AZombie::BeginPlay()
 	{
 		PawnSensingComp->OnSeePawn.AddDynamic(this, &AZombie::OnSeePlayer);
 		PawnSensingComp->OnHearNoise.AddDynamic(this, &AZombie::OnHearNoise);
+	}
+
+	if (LeftAttackCollisionBoxComp)
+	{
+		LeftAttackCollisionBoxComp->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlap);
+	}
+	if (RightAttackCollisionBoxComp)
+	{
+		RightAttackCollisionBoxComp->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlap);
 	}
 }
 
@@ -100,7 +132,7 @@ void AZombie::Tick(float DeltaTime)
 			/* Reset */
 			AIController->SetTargetEnemy(nullptr);
 			CurrentZombieBehavior = EZombieBehavior::Patrolling;
-			GetCharacterMovement()->MaxWalkSpeed = 150.f;
+			GetCharacterMovement()->MaxWalkSpeed = 100.f;
 			/* Stop playing the hunting sound */
 			BroadcastUpdateAudioLoop(false);
 		}
@@ -147,6 +179,196 @@ void AZombie::OnHealthChanged(UHealthComponent* HealthComp, float Health, float 
 	}
 }
 
+void AZombie::OnAttackOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor && OtherActor != this)
+	{
+		UGameplayStatics::ApplyDamage(OtherActor, AttackDamage, GetController(), this, UDamageType::StaticClass());
+	}
+}
+
+void AZombie::AttackTarget()
+{
+	UAnimMontage* AttackAnimationToPlay = nullptr;
+	USoundBase* AttackSoundToPlay = nullptr;
+	
+	int32 RandomHand = FMath::RandRange(0,1);
+	FTimerDelegate TimerDel;
+	if (RandomHand == 0)
+	{
+		if (GetCharacterMovement()->Velocity.Size() > 150.f)
+		{
+			if (RightHandChargedAttackMontages.Num() > 0)
+			{
+				int32 RandomIndex = FMath::RandRange(0, RightHandChargedAttackMontages.Num() - 1);
+				AttackAnimationToPlay = RightHandChargedAttackMontages[RandomIndex];
+				
+				if ((RandomIndex == 0) &&ChargedAttack1Sounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, ChargedAttack1Sounds.Num() - 1);
+					AttackSoundToPlay = ChargedAttack1Sounds[RandomSoundIndex];
+				}
+				else if ((RandomIndex == 1) &&ChargedAttack2Sounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, ChargedAttack2Sounds.Num() - 1);
+					AttackSoundToPlay = ChargedAttack2Sounds[RandomSoundIndex];
+				}
+				else if ((RandomIndex == 2) &&ChargedAttack3Sounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, ChargedAttack3Sounds.Num() - 1);
+					AttackSoundToPlay = ChargedAttack3Sounds[RandomSoundIndex];
+				}
+			}
+		}
+		else
+		{
+			if (RightHandNormalAttackMontages.Num() > 0)
+			{
+				int32 RandomIndex = FMath::RandRange(0, RightHandNormalAttackMontages.Num() - 1);
+				AttackAnimationToPlay = RightHandNormalAttackMontages[RandomIndex];
+				
+				if (NormalAttackSounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, NormalAttackSounds.Num() - 1);
+					AttackSoundToPlay = NormalAttackSounds[RandomSoundIndex];
+				}
+			}
+		}
+		TimerDel.BindUFunction(this, FName("ActivateAttackCollision"), RightAttackCollisionBoxComp);
+	}
+	else
+	{
+		if (GetCharacterMovement()->Velocity.Size() > 150.f)
+		{
+			if (LeftHandChargedAttackMontages.Num() > 0)
+			{
+				int32 RandomIndex = FMath::RandRange(0, LeftHandChargedAttackMontages.Num() - 1);
+				AttackAnimationToPlay = LeftHandChargedAttackMontages[RandomIndex];
+
+				if ((RandomIndex == 0) &&ChargedAttack1Sounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, ChargedAttack1Sounds.Num() - 1);
+					AttackSoundToPlay = ChargedAttack1Sounds[RandomSoundIndex];
+				}
+				else if ((RandomIndex == 1) &&ChargedAttack2Sounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, ChargedAttack2Sounds.Num() - 1);
+					AttackSoundToPlay = ChargedAttack2Sounds[RandomSoundIndex];
+				}
+				else if ((RandomIndex == 2) &&ChargedAttack3Sounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, ChargedAttack3Sounds.Num() - 1);
+					AttackSoundToPlay = ChargedAttack3Sounds[RandomSoundIndex];
+				}
+			}
+		}
+		else
+		{
+			if (LeftHandNormalAttackMontages.Num() > 0)
+			{
+				int32 RandomIndex = FMath::RandRange(0, LeftHandNormalAttackMontages.Num() - 1);
+				AttackAnimationToPlay = LeftHandNormalAttackMontages[RandomIndex];
+
+				if (NormalAttackSounds.Num() > 0)
+				{
+					int32 RandomSoundIndex = FMath::RandRange(0, NormalAttackSounds.Num() - 1);
+					AttackSoundToPlay = NormalAttackSounds[RandomSoundIndex];
+				}
+			}
+		}
+		TimerDel.BindUFunction(this, FName("ActivateAttackCollision"), LeftAttackCollisionBoxComp);
+	}
+
+	AZombieAIController* AIController = Cast<AZombieAIController>(GetController());
+	if (AttackAnimationToPlay && AttackSoundToPlay)
+	{
+		if (AIController)
+		{
+			AIController->SetSecondsToWait(AttackAnimationToPlay->GetPlayLength());
+		}
+		PlayAnimMontage(AttackAnimationToPlay);
+		UGameplayStatics::SpawnSoundAttached(AttackSoundToPlay, RootComponent, NAME_None, RootComponent->GetComponentLocation(), RootComponent->GetComponentRotation());
+	}
+
+	PlayAnimMontage(AttackAnimationToPlay, 1.5f);
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle_DeactivateCollision, TimerDel, AttackAnimationToPlay->GetPlayLength()/2, false);
+	if (RandomHand == 0)
+	{
+		DeactivateAttackCollision(RightAttackCollisionBoxComp);
+	}
+	else
+	{
+		DeactivateAttackCollision(LeftAttackCollisionBoxComp);
+	}
+}
+
+void AZombie::ActivateAttackCollision(UBoxComponent* CurrentBoxComponent)
+{
+	if (!bHasDealtDamage)
+	{
+		CurrentBoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		bHasDealtDamage = true;
+	}
+}
+
+void AZombie::DeactivateAttackCollision(UBoxComponent* CurrentBoxComponent)
+{
+	CurrentBoxComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	bHasDealtDamage = false; // Reset the flag for a new attack
+}
+
+void AZombie::SetupMontages()
+{
+	RightHandNormalAttackMontages.Add(RightHandNormalAttackAnim1);
+	RightHandNormalAttackMontages.Add(RightHandNormalAttackAnim2);
+	
+	RightHandChargedAttackMontages.Add(RightHandChargedAttackAnim1);
+	RightHandChargedAttackMontages.Add(RightHandChargedAttackAnim2);
+	RightHandChargedAttackMontages.Add(RightHandChargedAttackAnim3);
+
+	LeftHandNormalAttackMontages.Add(LeftHandNormalAttackAnim1);
+	LeftHandNormalAttackMontages.Add(LeftHandNormalAttackAnim2);
+
+	LeftHandChargedAttackMontages.Add(LeftHandChargedAttackAnim1);
+	LeftHandChargedAttackMontages.Add(LeftHandChargedAttackAnim2);
+	LeftHandChargedAttackMontages.Add(LeftHandChargedAttackAnim3);
+
+	ScreamMontages.Add(ScreamAnim1);
+	ScreamMontages.Add(ScreamAnim2);
+	ScreamMontages.Add(ScreamAnim3);
+	ScreamMontages.Add(ScreamAnim4);
+	ScreamMontages.Add(ScreamAnim5);
+	ScreamMontages.Add(ScreamAnim6);
+
+}
+
+void AZombie::Scream()
+{
+	UAnimMontage* ScreamAnimationToPlay = nullptr;
+	USoundBase* ScreamSoundToPlay = nullptr;
+	if (ScreamMontages.Num() > 0)
+	{
+		int32 RandomIndex = FMath::RandRange(0, ScreamMontages.Num() - 1);
+		ScreamAnimationToPlay = ScreamMontages[RandomIndex];
+		if (ScreamSounds.Num() > 0)
+		{
+			int32 RandomSoundIndex = FMath::RandRange(0, ScreamSounds.Num() - 1);
+			ScreamSoundToPlay = ScreamSounds[RandomSoundIndex];
+		}
+	}
+	AZombieAIController* AIController = Cast<AZombieAIController>(GetController());
+	if (ScreamAnimationToPlay && ScreamSoundToPlay)
+	{
+		if (AIController)
+		{
+			AIController->SetSecondsToWait(ScreamAnimationToPlay->GetPlayLength());
+		}
+		PlayAnimMontage(ScreamAnimationToPlay);
+		UGameplayStatics::SpawnSoundAttached(ScreamSoundToPlay, RootComponent, NAME_None, RootComponent->GetComponentLocation(), RootComponent->GetComponentRotation());
+	}
+}
+
 void AZombie::ApplyRagdoll()
 {
 	if (!HasAuthority())
@@ -185,7 +407,6 @@ void AZombie::OnSeePlayer(APawn* Pawn)
 
 	CurrentZombieBehavior = EZombieBehavior::Aggressive;
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
-
 	/* Keep track of the time the player was last sensed in order to clear the target */
 	LastSeenTime = GetWorld()->GetTimeSeconds();
 	bSensedTarget = true;
@@ -220,6 +441,36 @@ void AZombie::OnHearNoise(APawn* PawnInstigator, const FVector& Location, float 
 	{
 		AIController->SetTargetEnemy(PawnInstigator);
 	}
+}
+
+void AZombie::SetupAudios()
+{
+	NormalAttackSounds.Add(SoundAttackNormal1);
+	NormalAttackSounds.Add(SoundAttackNormal2);
+	NormalAttackSounds.Add(SoundAttackNormal3);
+	NormalAttackSounds.Add(SoundAttackNormal4);
+
+	ChargedAttack1Sounds.Add(SoundAttackCharged11);
+	ChargedAttack1Sounds.Add(SoundAttackCharged12);
+	ChargedAttack1Sounds.Add(SoundAttackCharged13);
+
+	ChargedAttack2Sounds.Add(SoundAttackCharged21);
+	ChargedAttack2Sounds.Add(SoundAttackCharged22);
+	ChargedAttack2Sounds.Add(SoundAttackCharged23);
+
+	ChargedAttack3Sounds.Add(SoundAttackCharged31);
+	ChargedAttack3Sounds.Add(SoundAttackCharged32);
+	ChargedAttack3Sounds.Add(SoundAttackCharged33);
+
+	ScreamSounds.Add(SoundScream1);
+	ScreamSounds.Add(SoundScream2);
+	ScreamSounds.Add(SoundScream3);
+	ScreamSounds.Add(SoundScream4);
+	ScreamSounds.Add(SoundScream5);
+	ScreamSounds.Add(SoundScream6);
+	ScreamSounds.Add(SoundScream7);
+	ScreamSounds.Add(SoundScream8);
+	ScreamSounds.Add(SoundScream9);
 }
 
 UAudioComponent* AZombie::PlayCharacterSound(USoundBase* CueToPlay)

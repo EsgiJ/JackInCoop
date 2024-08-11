@@ -39,6 +39,9 @@ class JACKINCOOP_API AZombieAIController : public AAIController
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
 	FName ZombieBehaviorTypeKeyName;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "AI")
+	FName SecondsToWaitKeyName;
 public:
 
 	AActor* GetWaypoint() const;
@@ -50,6 +53,8 @@ public:
 	void SetTargetEnemy(APawn* NewTarget);
 
 	void SetBlackboardZombieBehaviorType(EZombieBehavior NewType);
+
+	void SetSecondsToWait(float SecondsToWait);
 
 	/** Returns BehaviorComp subobject **/
 	FORCEINLINE UBehaviorTreeComponent* GetBehaviorComp() const { return BehaviorTreeComp; }

@@ -620,7 +620,7 @@ void AShooterWeapon::PlayZombieHitReact(AActor* DamagedActor, const FString& Hit
 {
 	UAnimMontage* HitMontageToPlay = nullptr;
 	UAnimMontage* DeathMontageToPlay = nullptr;
-	
+
 	if (HitDirection != "Back")
 	{
 		switch (SurfaceType)

@@ -9,6 +9,7 @@
 class UPawnSensingComponent;
 class UAIPerceptionComponent;
 class UHealthComponent;
+class UBoxComponent;
 
 UENUM(BlueprintType)
 enum class EZombieBehavior: uint8
@@ -60,6 +61,12 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPawnNoiseEmitterComponent* NoiseEmitterComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UBoxComponent* LeftAttackCollisionBoxComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UBoxComponent* RightAttackCollisionBoxComp;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* HEALTH */
 
@@ -75,6 +82,18 @@ protected:
 	void ServerApplyRagdoll();
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastApplyRagdoll();
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/* ATTACK */
+	float AttackDamage;
+	FTimerHandle TimerHandle_DeactivateCollision;
+	bool bHasDealtDamage = false;
+	UFUNCTION()
+	void ActivateAttackCollision(UBoxComponent* CurrentBoxComponent);
+	UFUNCTION()
+	void DeactivateAttackCollision(UBoxComponent* CurrentBoxComponent);
+
+	UFUNCTION()
+	void OnAttackOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
 	void OnSeePlayer(APawn* Pawn);
@@ -97,8 +116,66 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* SoundWandering;
 
+	TArray<USoundBase*> NormalAttackSounds;
+	TArray<USoundBase*> ChargedAttack1Sounds;
+	TArray<USoundBase*> ChargedAttack2Sounds;
+	TArray<USoundBase*> ChargedAttack3Sounds;
+	TArray<USoundBase*> ScreamSounds;
+	
+	/* Normal Attack Sounds */
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackMelee;
+	USoundBase* SoundAttackNormal1;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackNormal2;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackNormal3;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackNormal4;
+
+	/* Charged Attack 1 Sounds */
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged11;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged12;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged13;
+	/* Charged Attack 2 Sounds */
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged21;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged22;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged23;
+	/* Charged Attack 3 Sounds */
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged31;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged32;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundAttackCharged33;
+
+	/* Scream Sounds */
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream1;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream2;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream3;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream4;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream5;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream6;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream7;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream8;
+	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
+	USoundBase* SoundScream9;
+	
+	
+	void SetupAudios();
 	
 	/* Update the vocal loop of the zombie (idle, wandering, hunting) */
 	UFUNCTION(Reliable, NetMulticast)
@@ -115,7 +192,57 @@ protected:
 	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage, float InPlayRate);
 	UFUNCTION(Server,Reliable,WithValidation)
 	void ServerPlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate);
+
+	void SetupMontages();
 	
+	TArray<UAnimMontage*> RightHandNormalAttackMontages;
+	TArray<UAnimMontage*> LeftHandNormalAttackMontages;
+	TArray<UAnimMontage*> RightHandChargedAttackMontages;
+	TArray<UAnimMontage*> LeftHandChargedAttackMontages;
+	TArray<UAnimMontage*> ScreamMontages;
+	
+	/* Right Hand Normal Attack Anims */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHandNormalAttackAnim1;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHandNormalAttackAnim2;
+
+	/* Left Hand Normal Attack Anims */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHandNormalAttackAnim1;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHandNormalAttackAnim2;
+
+	/* Right Hand Charged Attack Anims */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHandChargedAttackAnim1;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHandChargedAttackAnim2;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* RightHandChargedAttackAnim3;
+
+	/* Left Hand Charged Attack Anims */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHandChargedAttackAnim1;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHandChargedAttackAnim2;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* LeftHandChargedAttackAnim3;
+
+	/* Scream Anims */
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ScreamAnim1;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ScreamAnim2;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ScreamAnim3;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ScreamAnim4;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ScreamAnim5;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UAnimMontage* ScreamAnim6;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -138,4 +265,8 @@ public:
 	bool IsAlive() const;
 
 	UHealthComponent* GetHealthComponent() const;
+
+	void AttackTarget();
+
+	void Scream();
 };

@@ -17,6 +17,7 @@ AZombieAIController::AZombieAIController(const FObjectInitializer& ObjectInitial
 	CurrentWaypointKeyName = "CurrentWaypoint";
 	ZombieBehaviorTypeKeyName = "ZombieBehaviorType";
 	TargetEnemyKeyName = "TargetEnemy";
+	SecondsToWaitKeyName = "SecondsToWait";
 
 	/* Initializes PlayerState so we can assign a team index to AI */
 	bWantsPlayerState = true;
@@ -93,5 +94,13 @@ void AZombieAIController::SetBlackboardZombieBehaviorType(EZombieBehavior NewTyp
 	if (BlackboardComp)
 	{
 		BlackboardComp->SetValueAsEnum(ZombieBehaviorTypeKeyName, (uint8)NewType);
+	}
+}
+
+void AZombieAIController::SetSecondsToWait(float SecondsToWait)
+{
+	if (BlackboardComp)
+	{
+		BlackboardComp->SetValueAsFloat(SecondsToWaitKeyName, SecondsToWait);
 	}
 }
