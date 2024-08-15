@@ -32,7 +32,7 @@ public:
 	FVector_NetQuantize TraceTo;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FWeaponData
 {
 	GENERATED_BODY()
@@ -98,9 +98,14 @@ public:
 	
 	float SetBulletSpread(float NewBulletSpread);
 
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void GrantAmmo();
+
 	EWeaponState GetCurrentState() const;
 	void SetCurrentState(EWeaponState NewWeaponState);
-	
+
+	UFUNCTION(BlueprintCallable)
+	float GetAmmoSizePerClip() const;
 
 	/** get pawn owner */
 	UFUNCTION(BlueprintCallable, Category="Game|Weapon")

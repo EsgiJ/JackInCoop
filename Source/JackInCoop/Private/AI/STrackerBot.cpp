@@ -49,8 +49,6 @@ ASTrackerBot::ASTrackerBot()
 	ExplosionRadius = 350.f;
 
 	SelfDamageInterval = 0.25f;
-
-	
 }
 
 // Called when the game starts or when spawned

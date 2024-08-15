@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "ShooterCharacter.generated.h"
 
+class ABuildable;
 class APistol;
 class UInventoryComponent;
 class UHealthComponent;
@@ -16,6 +17,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputComponent;
 class UInputMappingContext;
+class UBuildManagerComponent;
 
 UENUM(BlueprintType)
 enum class EWeaponType: uint8
@@ -77,6 +79,16 @@ protected:
 	/* Look Reload Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* FlashlightOnOffAction;
+
+	/* Build Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ToggleBuildModeAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* RequestBuildAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* InteractAction;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* COMPONENTS*/
@@ -94,6 +106,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPawnNoiseEmitterComponent* NoiseEmitterComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	UBuildManagerComponent* BuildManager;
 
 protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +201,8 @@ protected:
 	float LastNoiseLoudness;
 
 	float LastMakeNoiseTime;
-	
+
+
 public:
 	// Sets default values for this character's properties
 	AShooterCharacter();
@@ -194,6 +210,18 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	void ChechForInteractable();
+
+	// Called when the player presses the interaction button
+	void Interact();
+
+	// The interactable object the player is currently looking at
+	UPROPERTY()
+	ABuildable* CurrentInteractable;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Interactable")
+	float InteractionDistance = 1000.f;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* INPUT METHODS */
 
@@ -246,6 +274,9 @@ protected:
 	
 	/* Reload Weapon */
 	void StartReload(const FInputActionValue& Value);
+
+	void ToggleBuildMode();
+	void RequestBuild();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

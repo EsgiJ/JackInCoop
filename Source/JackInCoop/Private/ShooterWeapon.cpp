@@ -122,7 +122,7 @@ void AShooterWeapon::Fire()
 			if(GetWorld()->LineTraceSingleByChannel(HitResult, ActorEyesLocation, LineTraceEndLocation, COLLISION_WEAPON, QueryParams))
 			{
 				AActor* HitActor = HitResult.GetActor();
-
+				
 				//Determine surface type
 				SurfaceType = UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
 
@@ -141,16 +141,25 @@ void AShooterWeapon::Fire()
 				{
 					ActualDamage *= 0.75f;
 				}
-				UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), GetOwner(), DamageType);
+				if (HitActor)
+				{
+					UGameplayStatics::ApplyPointDamage(HitActor, ActualDamage, ShotDirection, HitResult, MyPawn->GetInstigatorController(), GetOwner(), DamageType);
+				}
 
 				PlayImpactEffects(SurfaceType, HitResult.ImpactPoint);
 				
 				TracerEndPoint = HitResult.ImpactPoint;
 
+
 				ShotDirection.Normalize();
-				float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(-1 * ShotDirection, HitActor->GetActorForwardVector())));
-				// Sağ veya sol tarafta olduğunu belirlemek için çapraz çarpımı kullan
-				FVector CrossProduct = FVector::CrossProduct(HitActor->GetActorForwardVector(), ShotDirection);
+				float Angle = 0.f;
+				FVector CrossProduct;
+				if (HitActor)
+				{
+					Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(-1 * ShotDirection, HitActor->GetActorForwardVector())));
+					// Sağ veya sol tarafta olduğunu belirlemek için çapraz çarpımı kullan
+					CrossProduct = FVector::CrossProduct(HitActor->GetActorForwardVector(), ShotDirection);
+				}
 				bool bFromRight = CrossProduct.Z < 0;
 
 				// Açıya göre yön belirleme
@@ -411,6 +420,11 @@ float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
 	return BulletSpread = NewBulletSpread;
 }
 
+void AShooterWeapon::GrantAmmo()
+{
+	CurrentAmmo = WeaponConfig.MaxAmmo - CurrentAmmoInClip;
+}
+
 EWeaponState AShooterWeapon::GetCurrentState() const
 {
 	return CurrentState;
@@ -419,6 +433,11 @@ EWeaponState AShooterWeapon::GetCurrentState() const
 void AShooterWeapon::SetCurrentState(EWeaponState NewWeaponState)
 {
 	CurrentState = NewWeaponState;
+}
+
+float AShooterWeapon::GetAmmoSizePerClip() const
+{
+	return WeaponConfig.AmmoPerClip;
 }
 
 void AShooterWeapon::PlayFireEffects(FVector TracerEndPoint)

@@ -104,6 +104,9 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* AUDIO */
 
+	TArray<USoundBase*> ScreamSounds;
+	TArray<USoundBase*> NormalAttackSounds;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* SoundPlayerNoticed;
 
@@ -116,44 +119,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* SoundWandering;
 
-	TArray<USoundBase*> NormalAttackSounds;
-	TArray<USoundBase*> ChargedAttack1Sounds;
-	TArray<USoundBase*> ChargedAttack2Sounds;
-	TArray<USoundBase*> ChargedAttack3Sounds;
-	TArray<USoundBase*> ScreamSounds;
-	
-	/* Normal Attack Sounds */
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
 	USoundBase* SoundAttackNormal1;
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
 	USoundBase* SoundAttackNormal2;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackNormal3;
+	USoundBase* SoundAttackCharged1;
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackNormal4;
-
-	/* Charged Attack 1 Sounds */
+	USoundBase* SoundAttackCharged2;
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged11;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged12;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged13;
-	/* Charged Attack 2 Sounds */
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged21;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged22;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged23;
-	/* Charged Attack 3 Sounds */
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged31;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged32;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundAttackCharged33;
-
+	USoundBase* SoundAttackCharged3;
+	
 	/* Scream Sounds */
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
 	USoundBase* SoundScream1;
@@ -161,19 +138,6 @@ protected:
 	USoundBase* SoundScream2;
 	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
 	USoundBase* SoundScream3;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundScream4;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundScream5;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundScream6;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundScream7;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundScream8;
-	UPROPERTY(EditDefaultsOnly, Category = "Sound") 
-	USoundBase* SoundScream9;
-	
 	
 	void SetupAudios();
 	
@@ -236,12 +200,6 @@ protected:
 	UAnimMontage* ScreamAnim2;
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	UAnimMontage* ScreamAnim3;
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* ScreamAnim4;
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* ScreamAnim5;
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	UAnimMontage* ScreamAnim6;
 
 public:	
 	// Called every frame

@@ -8,7 +8,7 @@ public class JackInCoop : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PhysicsCore", "NavigationSystem", "AIModule"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "PhysicsCore", "NavigationSystem", "AIModule", "UMG"});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

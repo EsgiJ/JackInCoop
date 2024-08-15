@@ -2,6 +2,8 @@
 
 
 #include "ShooterCharacter.h"
+
+#include "Buildable.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "HealthComponent.h"
@@ -16,8 +18,12 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "JackInCoop/JackInCoop.h"
 #include "Net/UnrealNetwork.h"
+#include "BuildManagerComponent.h"
+#include "AI/STrackerBot.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/SlateWrapperTypes.h"
 
-
+#define FAULTY_WEAPON_INDEX 0
 
 // Sets default values
 AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveAction(nullptr), LookAction(nullptr)
@@ -44,6 +50,8 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	CameraComponent->SetupAttachment(SpringArmComponent);
 	
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+
+	BuildManager = CreateDefaultSubobject<UBuildManagerComponent>(TEXT("BuildManagerComponent"));
 
 	/* Set Ironsights parameters*/
 	ZoomedWalkSpeed = 225.f;
@@ -104,6 +112,9 @@ void AShooterCharacter::BeginPlay()
 			PistolWeapon->SetOwningPawn(this);
 			PistolWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, PistolWeaponAttachSocketName);
 			InventoryComponent->AddItem(PistolWeapon);
+
+			// Apply rotation correction for the problematic weapon
+			PistolWeapon->SetActorRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
 		}
 		
 		PrimaryWeapon = GetWorld()->SpawnActor<AShooterWeapon>(PrimaryWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
@@ -123,6 +134,43 @@ void AShooterCharacter::BeginPlay()
 			InventoryComponent->AddItem(SecondaryWeapon);
 		}
 		CurrentWeaponType = EWeaponType::Rifle;
+	}
+}
+
+void AShooterCharacter::ChechForInteractable()
+{
+	FVector Start = CameraComponent->GetComponentLocation();
+	FVector ForwardVector = CameraComponent->GetForwardVector();
+	FVector End = Start + (ForwardVector * InteractionDistance);
+
+	FHitResult HitResult;
+	FCollisionQueryParams CollisionParams;
+	CollisionParams.AddIgnoredActor(this);
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		Start,
+		End,
+		ECC_Visibility,
+		CollisionParams
+	);
+
+	if (bHit)
+	{
+		ABuildable* HitBuildable = Cast<ABuildable>(HitResult.GetActor());
+
+		if (HitBuildable)
+		{
+			CurrentInteractable = HitBuildable;
+		}
+	}
+}
+
+void AShooterCharacter::Interact()
+{
+	if (CurrentInteractable)
+	{
+		CurrentInteractable->Interact(this);
 	}
 }
 
@@ -156,6 +204,7 @@ void AShooterCharacter::Tick(float DeltaTime)
 	{
 		MakePawnNoise(1.f);
 	}
+	ChechForInteractable();
 }
 
 // Called to bind functionality to input
@@ -184,6 +233,11 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		EnhancedInputComponent->BindAction(SwitchToSecondaryWeaponAction, ETriggerEvent::Triggered, this, &AShooterCharacter::SwitchToSecondaryWeapon);
 
 		EnhancedInputComponent->BindAction(FlashlightOnOffAction, ETriggerEvent::Completed, this, &AShooterCharacter::FlashlightOnOff);
+
+		EnhancedInputComponent->BindAction(ToggleBuildModeAction, ETriggerEvent::Started, this, &AShooterCharacter::ToggleBuildMode);
+		EnhancedInputComponent->BindAction(RequestBuildAction, ETriggerEvent::Started, this, &AShooterCharacter::RequestBuild);
+
+		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AShooterCharacter::Interact);
 	}
 }
 
@@ -337,7 +391,7 @@ void AShooterCharacter::SwitchToPrimaryWeapon()
 void AShooterCharacter::SwitchToSecondaryWeapon()
 {
 	SwitchWeapon(2, HeldWeaponAttachSocketName);
-	CurrentWeaponType = EWeaponType::Rifle;
+	CurrentWeaponType = EWeaponType::Shotgun;
 }
 
 void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName)
@@ -376,10 +430,21 @@ void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex, FName HeldWeaponSo
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HeldWeaponSocketName);
 	}
 
+	if (CurrentWeapon == PistolWeapon)
+	{
+		PistolWeapon->SetActorRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+	}
+
 	CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
 	CurrentWeapon->SetOwningPawn(this);
 	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandAttachSocketName);
+
+	// Apply rotation correction for the problematic weapon
+	if (WeaponIndex == FAULTY_WEAPON_INDEX)
+	{
+		CurrentWeapon->SetActorRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+	}
 
 	CurrentWeapon->SetCurrentState(EWeaponState::Idle);
 	HeldWeaponAttachSocketName = GetCurrentWeaponSocketName();
@@ -501,6 +566,16 @@ void AShooterCharacter::StartReload(const FInputActionValue& Value)
 	{
 		CurrentWeapon->StartReload();
 	}
+}
+
+void AShooterCharacter::ToggleBuildMode()
+{
+	BuildManager->ToggleBuildMode();
+}
+
+void AShooterCharacter::RequestBuild()
+{
+	BuildManager->RequestBuild();
 }
 
 bool AShooterCharacter::GetWantsZoom() const
