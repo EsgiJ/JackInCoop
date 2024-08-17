@@ -18,6 +18,7 @@ class UCameraComponent;
 class UInputComponent;
 class UInputMappingContext;
 class UBuildManagerComponent;
+class UUserWidget;
 
 UENUM(BlueprintType)
 enum class EWeaponType: uint8
@@ -89,6 +90,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* InteractAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* OpenSwitchWeaponWheel;
 	
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* COMPONENTS*/
@@ -132,15 +136,17 @@ protected:
 	bool bWantsToZoom;
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
-	FName HandAttachSocketName;
-	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName PrimaryWeaponAttachSocketName;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName SecondaryWeaponAttachSocketName;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
 	FName PistolWeaponAttachSocketName;
 	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
-	FName HeldWeaponAttachSocketName;
+	FName HandPistolSocketName;
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName HandRifleSocketName;
+	UPROPERTY(VisibleDefaultsOnly, Category = "Weapon")
+	FName HandShotgunSocketName;
 
 	FName GetCurrentWeaponSocketName() const;
 	
@@ -193,6 +199,13 @@ protected:
 
 	bool bFlashlightOn;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> WeaponWheelWidgetClass;
+
+	// Widget Blueprint'in referansý
+	UPROPERTY()
+	UUserWidget* WeaponWheelWidget;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* ANIMS */
 	UPROPERTY(EditDefaultsOnly, Category = "Anims")
@@ -237,8 +250,11 @@ protected:
 	void BeginCrouch(const FInputActionValue& Value);
 	void EndCrouch(const FInputActionValue& Value);
 
+	UFUNCTION(BlueprintCallable)
 	void SwitchToPrimaryWeapon();
+	UFUNCTION(BlueprintCallable)
 	void SwitchToSecondaryWeapon();
+	UFUNCTION(BlueprintCallable)
 	void SwitchToPistolWeapon();
 	
 	/* Zoom | Ironsights | Server */
@@ -253,14 +269,14 @@ protected:
 
 	/* Switch Weapon | Server */
 	UFUNCTION()
-	void SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName);
+	void SwitchWeapon(int32 WeaponIndex);
 	UFUNCTION()
-	void FinishWeaponSwitch(int32 WeaponIndex, FName HeldWeaponSocketName);
+	void FinishWeaponSwitch(int32 WeaponIndex);
 	
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerSwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName);
-	void ServerSwitchWeapon_Implementation(int32 WeaponIndex, FName HeldWeaponSocketName);
-	bool ServerSwitchWeapon_Validate(int32 WeaponIndex, FName HeldWeaponSocketName);
+	void ServerSwitchWeapon(int32 WeaponIndex);
+	void ServerSwitchWeapon_Implementation(int32 WeaponIndex);
+	bool ServerSwitchWeapon_Validate(int32 WeaponIndex);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAnimationMontage(UAnimMontage* AnimMontage, float InPlayRate);
@@ -277,6 +293,9 @@ protected:
 
 	void ToggleBuildMode();
 	void RequestBuild();
+
+	void OpenSwtichWeaponWheel();
+	void CloseSwitchWeaponWheel();
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

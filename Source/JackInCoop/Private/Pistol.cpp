@@ -10,8 +10,8 @@ APistol::APistol()
     BaseDamage = 5.f;
     WeaponConfig.MaxAmmo = 20;
     WeaponConfig.AmmoPerClip = 10;
-    WeaponConfig.RateOfFire = 60.f;
-    WeaponConfig.TimeBetweenShots = 1.f;
+    WeaponConfig.RateOfFire = 120.f;
+    WeaponConfig.TimeBetweenShots = WeaponConfig.TimeBetweenShots = 60 / WeaponConfig.RateOfFire;
 
     SetReplicates(true);
     SetReplicateMovement(true);

@@ -29,7 +29,7 @@ AShooterWeapon::AShooterWeapon()
 	RootComponent = MeshComponent;
 
 	SpotLightComp = CreateDefaultSubobject<USpotLightComponent>(TEXT("SpotLightComp"));
-	
+
 	MuzzleSocketName = "MuzzleSocket";
 	TracerBeamEndName = "BeamEnd";
 	FlashlightSocket = "FlashlightSocket";
@@ -195,10 +195,12 @@ void AShooterWeapon::Fire()
 				if (Cast<AShooterCharacter>(HitActor))
 				{
 					PlayShooterCharacterHitReact(HitActor, HitDirection, HitType);
+					UGameplayStatics::SpawnSoundAtLocation(GetWorld(), BulletImpactSound, HitActor->GetActorLocation(), HitActor->GetActorRotation());
 				}
 				else if (Cast<AZombie>(HitActor))
 				{
-					PlayZombieHitReact(HitActor, HitDirection, SurfaceType);	
+					PlayZombieHitReact(HitActor, HitDirection, SurfaceType);
+					UGameplayStatics::SpawnSoundAtLocation(GetWorld(), BulletImpactSound, HitActor->GetActorLocation(), HitActor->GetActorRotation());
 				}
 			}
 			/* On-off console command*/

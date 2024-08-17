@@ -220,6 +220,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	USoundBase* EmptyClipSound;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* BulletImpactSound;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* TIMERS */
 

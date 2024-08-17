@@ -19,7 +19,6 @@
 #include "JackInCoop/JackInCoop.h"
 #include "Net/UnrealNetwork.h"
 #include "BuildManagerComponent.h"
-#include "AI/STrackerBot.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/SlateWrapperTypes.h"
 
@@ -61,10 +60,14 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	ZoomInterpSpeed = 20.0f;
 
 	/* Socket name to attach the weapon */
-	HandAttachSocketName = "HandWeaponSocket";
 	PrimaryWeaponAttachSocketName = "PrimaryWeaponSocket";
 	SecondaryWeaponAttachSocketName = "SecondaryWeaponSocket";
 	PistolWeaponAttachSocketName = "PistolWeaponSocket";
+
+	HandPistolSocketName = "HandPistolSocket";
+	HandRifleSocketName = "HandRifleSocket";
+	HandShotgunSocketName = "HandShotgunSocket";
+
 
 	bFlashlightOn = false;
 	
@@ -95,6 +98,13 @@ void AShooterCharacter::BeginPlay()
 		}
 	}
 
+	if (WeaponWheelWidgetClass)
+	{
+		WeaponWheelWidget = CreateWidget<UUserWidget>(GetWorld(), WeaponWheelWidgetClass);
+		WeaponWheelWidget->SetVisibility(ESlateVisibility::Hidden);
+		WeaponWheelWidget->AddToViewport();
+	}
+
 	/* Set default Field Of View */
 	DefaultFOV = CameraComponent->FieldOfView;
 	HealthComponent->OnHealthChanged.AddDynamic(this, &AShooterCharacter::OnHealthChanged);
@@ -112,16 +122,13 @@ void AShooterCharacter::BeginPlay()
 			PistolWeapon->SetOwningPawn(this);
 			PistolWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, PistolWeaponAttachSocketName);
 			InventoryComponent->AddItem(PistolWeapon);
-
-			// Apply rotation correction for the problematic weapon
-			PistolWeapon->SetActorRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
 		}
 		
 		PrimaryWeapon = GetWorld()->SpawnActor<AShooterWeapon>(PrimaryWeaponClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 		if (PrimaryWeapon)
 		{
 			PrimaryWeapon->SetOwningPawn(this);
-			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, HandAttachSocketName);
+			PrimaryWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, HandRifleSocketName);
 			InventoryComponent->AddItem(PrimaryWeapon);
 			CurrentWeapon= PrimaryWeapon;
 		}
@@ -238,6 +245,9 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 		EnhancedInputComponent->BindAction(RequestBuildAction, ETriggerEvent::Started, this, &AShooterCharacter::RequestBuild);
 
 		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &AShooterCharacter::Interact);
+
+		EnhancedInputComponent->BindAction(OpenSwitchWeaponWheel, ETriggerEvent::Started, this, &AShooterCharacter::OpenSwtichWeaponWheel);
+		EnhancedInputComponent->BindAction(OpenSwitchWeaponWheel, ETriggerEvent::Completed, this, &AShooterCharacter::CloseSwitchWeaponWheel);
 	}
 }
 
@@ -378,27 +388,27 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 
 void AShooterCharacter::SwitchToPistolWeapon()
 {
-	SwitchWeapon(0, HeldWeaponAttachSocketName);
+	SwitchWeapon(0);
 	CurrentWeaponType = EWeaponType::Pistol;
 }
 
 void AShooterCharacter::SwitchToPrimaryWeapon()
 {
-	SwitchWeapon(1, HeldWeaponAttachSocketName);
+	SwitchWeapon(1);
 	CurrentWeaponType = EWeaponType::Rifle;
 }
 
 void AShooterCharacter::SwitchToSecondaryWeapon()
 {
-	SwitchWeapon(2, HeldWeaponAttachSocketName);
+	SwitchWeapon(2);
 	CurrentWeaponType = EWeaponType::Shotgun;
 }
 
-void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketName)
+void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
 {
 	if (!HasAuthority())
 	{
-		ServerSwitchWeapon(WeaponIndex, HeldWeaponSocketName);
+		ServerSwitchWeapon(WeaponIndex);
 	}
 
 	if (InventoryComponent->InventoryItems.IsValidIndex(WeaponIndex) && CanSwitchWeapon())
@@ -412,7 +422,7 @@ void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketNa
 
 		FTimerHandle TimerHandle_SwitchWeapon;
 		FTimerDelegate TimerDel;
-		TimerDel.BindUFunction(this, FName("FinishWeaponSwitch"), WeaponIndex, HeldWeaponSocketName);
+		TimerDel.BindUFunction(this, FName("FinishWeaponSwitch"), WeaponIndex);
 		
 		GetWorldTimerManager().SetTimer(TimerHandle_SwitchWeapon, TimerDel, SwitchWeaponAnim->GetPlayLength()/2, false);
 	}
@@ -422,40 +432,51 @@ void AShooterCharacter::SwitchWeapon(int32 WeaponIndex, FName HeldWeaponSocketNa
 	}
 }
 
-void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex, FName HeldWeaponSocketName)
+void AShooterCharacter::FinishWeaponSwitch(int32 WeaponIndex)
 {
-	if (CurrentWeapon)
-	{
-		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HeldWeaponSocketName);
-	}
-
 	if (CurrentWeapon == PistolWeapon)
 	{
-		PistolWeapon->SetActorRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, PistolWeaponAttachSocketName);
+	}
+	else if (CurrentWeapon == PrimaryWeapon)
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, PrimaryWeaponAttachSocketName);
+	}
+	else if (CurrentWeapon == SecondaryWeapon)
+	{
+		CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, SecondaryWeaponAttachSocketName);
 	}
 
 	CurrentWeapon = InventoryComponent->InventoryItems[WeaponIndex];
 	CurrentWeapon->SetOwningPawn(this);
 	CurrentWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandAttachSocketName);
 
-	// Apply rotation correction for the problematic weapon
-	if (WeaponIndex == FAULTY_WEAPON_INDEX)
+	if (CurrentWeapon == PistolWeapon)
 	{
-		CurrentWeapon->SetActorRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandPistolSocketName);
 	}
+	else if (CurrentWeapon == PrimaryWeapon)
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandRifleSocketName);
 
+	}
+	else if (CurrentWeapon == SecondaryWeapon)
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, HandShotgunSocketName);
+
+	}
 	CurrentWeapon->SetCurrentState(EWeaponState::Idle);
-	HeldWeaponAttachSocketName = GetCurrentWeaponSocketName();
 }
 
-void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex, FName HeldWeaponSocketName)
+void AShooterCharacter::ServerSwitchWeapon_Implementation(int32 WeaponIndex)
 {
-	SwitchWeapon(WeaponIndex, HeldWeaponSocketName);
+	SwitchWeapon(WeaponIndex);
 }
 
-bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex, FName HeldWeaponSocketName)
+bool AShooterCharacter::ServerSwitchWeapon_Validate(int32 WeaponIndex)
 {
 	return true; // Optionally add more validation logic
 }
@@ -576,6 +597,41 @@ void AShooterCharacter::ToggleBuildMode()
 void AShooterCharacter::RequestBuild()
 {
 	BuildManager->RequestBuild();
+}
+
+void AShooterCharacter::OpenSwtichWeaponWheel()
+{
+	if (WeaponWheelWidget)
+	{
+		WeaponWheelWidget->SetVisibility(ESlateVisibility::Visible);
+
+		APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+		if (PlayerController)
+		{
+			FInputModeGameAndUI InputMode;
+			InputMode.SetWidgetToFocus(WeaponWheelWidget->TakeWidget());
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->bShowMouseCursor = true;
+		}
+	}
+}
+
+void AShooterCharacter::CloseSwitchWeaponWheel()
+{
+	if (WeaponWheelWidget)
+	{
+		WeaponWheelWidget->SetVisibility(ESlateVisibility::Hidden);
+
+		// Input modunu tekrar oyun moduna çevirin
+		APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+		if (PlayerController)
+		{
+			FInputModeGameOnly InputMode;
+			PlayerController->SetInputMode(InputMode);
+			PlayerController->bShowMouseCursor = false; // Fare imlecini gizle
+		}
+	}
 }
 
 bool AShooterCharacter::GetWantsZoom() const
