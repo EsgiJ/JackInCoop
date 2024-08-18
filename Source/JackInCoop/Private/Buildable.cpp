@@ -3,9 +3,11 @@
 
 #include "Buildable.h"
 
+#include "HealthComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ABuildable::ABuildable()
@@ -24,7 +26,19 @@ ABuildable::ABuildable()
 
 	CollisionVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionVolume"));
 	CollisionVolume->SetupAttachment(RootComponent);
-	CollisionVolume->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+	CollisionVolume->SetCollisionProfileName(TEXT("OverlapAll"));
+	CollisionVolume->SetGenerateOverlapEvents(true);
+
+	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &ABuildable::OnCollisionBeginOverlap);
+	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &ABuildable::OnCollisionEndOverlap);
+
+	DefautHealth = 100;
+
+	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	HealthComponent->SetDefaultHealth(DefautHealth);
+
+	GridSize = 20.f;
+	bCanBuild = true;
 }
 
 void ABuildable::Build()
@@ -34,6 +48,24 @@ void ABuildable::Build()
 	PreviewMesh->SetVisibility(false);
 }
 
+void ABuildable::OnHealthChanged(UHealthComponent* HealthComp, float Health, float
+	HealthDelta, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser)
+{
+	/* If already dead return and do nothing */
+	if (bDied)
+	{
+		return;
+	}
+	/* If health is less or equal to 0; stop movement of player, destroy collision,
+	 * destroy mesh after 10 seconds, detach controller*/
+	if (Health <= 0.0f)
+	{
+		bDied = true;
+
+		CollisionVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+}
+
 FVector ABuildable::GetCollisionVolumeSize() const
 {
 	return CollisionVolume->GetScaledBoxExtent();
@@ -41,7 +73,38 @@ FVector ABuildable::GetCollisionVolumeSize() const
 
 void ABuildable::Interact(AShooterCharacter* Interactor)
 {
-	OnInteract(Interactor);
+	if (BuildMesh->IsVisible())
+	{
+		OnInteract(Interactor);
+	}
+}
+
+float ABuildable::GetGridSize()
+{
+	return GridSize;
+}
+
+bool ABuildable::CanBuild()
+{
+	return bCanBuild;
+}
+
+void ABuildable::OnCollisionBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor != this)
+	{
+		bCanBuild = false;
+		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Yellow, TEXT("OnCollisionBeginOverlap"));
+	}
+}
+
+void ABuildable::OnCollisionEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (OtherActor != this)
+	{
+		bCanBuild = true;
+		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Yellow, TEXT("OnCollisionEndOverlap"));
+	}
 }
 
 // Called when the game starts or when spawned
@@ -58,3 +121,12 @@ void ABuildable::Tick(float DeltaTime)
 
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* SERVER */
+/* Replicate object for networking*/
+void ABuildable::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABuildable, bDied);
+}

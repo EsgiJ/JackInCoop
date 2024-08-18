@@ -6,6 +6,7 @@
 #include "AIController.h"
 #include "ZombieAIController.generated.h"
 
+class ABuildable;
 class AZombieWayPoint;
 class AShooterCharacter;
 enum class EZombieBehavior : uint8;
@@ -42,6 +43,9 @@ class JACKINCOOP_API AZombieAIController : public AAIController
 	
 	UPROPERTY(EditDefaultsOnly, Category = "AI")
 	FName SecondsToWaitKeyName;
+
+	UPROPERTY(EditDefaultsOnly, Category = "AI")
+	FName TargetWallKeyName;
 public:
 
 	AActor* GetWaypoint() const;
@@ -50,7 +54,9 @@ public:
 
 	void SetWaypoint(AActor* NewWaypoint);
 
-	void SetTargetEnemy(APawn* NewTarget);
+	void SetTargetEnemy(APawn* NewWallTarget);
+
+	void SetTargetWall(ABuildable* NewTarget);
 
 	void SetBlackboardZombieBehaviorType(EZombieBehavior NewType);
 

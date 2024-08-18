@@ -2,6 +2,7 @@
 
 
 #include "AI/ZombieAIController.h"
+#include "Buildable.h"
 #include "ShooterCharacter.h"
 #include "AI/Zombie.h"
 #include "BehaviorTree/BehaviorTree.h"
@@ -18,6 +19,7 @@ AZombieAIController::AZombieAIController(const FObjectInitializer& ObjectInitial
 	ZombieBehaviorTypeKeyName = "ZombieBehaviorType";
 	TargetEnemyKeyName = "TargetEnemy";
 	SecondsToWaitKeyName = "SecondsToWait";
+	TargetWallKeyName = "TargetWall";
 
 	/* Initializes PlayerState so we can assign a team index to AI */
 	bWantsPlayerState = true;
@@ -62,6 +64,14 @@ void AZombieAIController::SetTargetEnemy(APawn* NewTarget)
 	if (BlackboardComp)
 	{
 		BlackboardComp->SetValueAsObject(TargetEnemyKeyName, NewTarget);
+	}
+}
+
+void AZombieAIController::SetTargetWall(ABuildable* NewWallTarget)
+{
+	if (BlackboardComp)
+	{
+		BlackboardComp->SetValueAsObject(TargetWallKeyName, NewWallTarget);
 	}
 }
 

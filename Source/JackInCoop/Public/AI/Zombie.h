@@ -10,6 +10,7 @@ class UPawnSensingComponent;
 class UAIPerceptionComponent;
 class UHealthComponent;
 class UBoxComponent;
+class USphereComponent;
 
 UENUM(BlueprintType)
 enum class EZombieBehavior: uint8
@@ -67,6 +68,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UBoxComponent* RightAttackCollisionBoxComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USphereComponent* SphereComponent;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* HEALTH */
 
@@ -227,4 +231,6 @@ public:
 	void AttackTarget();
 
 	void Scream();
+
+	bool FindNearbyWall();
 };

@@ -424,7 +424,7 @@ float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
 
 void AShooterWeapon::GrantAmmo()
 {
-	CurrentAmmo = WeaponConfig.MaxAmmo - CurrentAmmoInClip;
+	CurrentAmmo = WeaponConfig.MaxAmmo - CurrentAmmo;
 }
 
 EWeaponState AShooterWeapon::GetCurrentState() const

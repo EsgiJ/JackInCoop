@@ -68,15 +68,17 @@ void UBuildManagerComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 		{
 			//Create CurrentBuild
 			CurrentBuild = GetWorld()->SpawnActor<ABuildable>(Buildable, Location, Rotation, FActorSpawnParameters{});
+			GridSize = CurrentBuild->GetGridSize();
 		}
 		else
 		{
 			FRotator AdjustedRotation = CurrentBuild->GetActorRotation();
 			AdjustedRotation.Yaw += 90.f;
-			//DrawDebugBox(GetWorld(), CurrentBuild->PreviewMesh->GetComponentLocation(), CurrentBuild->GetCollisionVolumeSize(), AdjustedRotation.Quaternion(), FColor::Green, false, 5.0f);
+
 			//Update location an rotation
 			CurrentBuild->SetActorLocationAndRotation(Location,Rotation);
-			if (!CheckCollision(CurrentBuild->PreviewMesh->GetComponentLocation(), AdjustedRotation, CurrentBuild->GetCollisionVolumeSize()))
+
+			if (CurrentBuild->CanBuild())
 			{
 				//Pulse the material on hit
 				if (CurrentBuild->MatInst == nullptr)
@@ -86,9 +88,10 @@ void UBuildManagerComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 				if (CurrentBuild->MatInst)
 				{
-					FLinearColor NewColor = FLinearColor::Red;  
+					FLinearColor NewColor = FLinearColor::Blue;
 					CurrentBuild->MatInst->SetVectorParameterValue("PreviewColor", NewColor);
 				}
+
 			}
 			else
 			{
@@ -100,7 +103,7 @@ void UBuildManagerComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 				if (CurrentBuild->MatInst)
 				{
-					FLinearColor NewColor = FLinearColor::Blue;
+					FLinearColor NewColor = FLinearColor::Red;
 					CurrentBuild->MatInst->SetVectorParameterValue("PreviewColor", NewColor);
 				}
 			}
@@ -135,6 +138,7 @@ FRotator UBuildManagerComponent::GetNextBuildRotation() const
 void UBuildManagerComponent::ToggleBuildMode()
 {
 	bIsBuilding = true;
+
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Blue, TEXT("UBuildManagerComponent::ToggleBuild()"));
@@ -148,7 +152,7 @@ void UBuildManagerComponent::RequestBuild()
 		return;
 	}
 	GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Blue, TEXT("UBuildManagerComponent::RequestBuild()"));
-	if (CurrentBuild && CheckCollision(CurrentBuild->PreviewMesh->GetComponentLocation(), CurrentBuild->PreviewMesh->GetComponentRotation(),CurrentBuild->GetCollisionVolumeSize()))
+	if (CurrentBuild->CanBuild())
 	{
 		CurrentBuild->Build();
 		CurrentBuild = nullptr;

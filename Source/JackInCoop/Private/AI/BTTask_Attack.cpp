@@ -2,8 +2,7 @@
 
 
 #include "AI/BTTask_Attack.h"
-#include "BehaviorTree/BlackboardComponent.h"
-/* This contains includes all key types like UBlackboardKeyType_Vector used below. */
+
 #include "AI/Zombie.h"
 #include "AI/ZombieAIController.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyAllTypes.h"

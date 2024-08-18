@@ -3,6 +3,7 @@
 
 #include "AI/Zombie.h"
 
+#include "Buildable.h"
 #include "HealthComponent.h"
 #include "ShooterCharacter.h"
 #include "AI/ZombieAIController.h"
@@ -10,6 +11,7 @@
 #include "Components/AudioComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "JackInCoop/JackInCoop.h"
@@ -36,6 +38,12 @@ AZombie::AZombie()
 	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
 	GetCapsuleComponent()->SetCapsuleHalfHeight(96.0f, false);
 	GetCapsuleComponent()->SetCapsuleRadius(42.0f);
+
+	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
+	SphereComponent->SetupAttachment(RootComponent);
+	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	SphereComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+	SphereComponent->SetGenerateOverlapEvents(true);
 
 	LeftAttackCollisionBoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("LeftHandAttackCollisionBoxComponent"));
 	LeftAttackCollisionBoxComp->SetupAttachment(GetMesh(), FName("LeftHandCollisionSocket"));
@@ -80,7 +88,7 @@ void AZombie::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	GetCharacterMovement()->MaxWalkSpeed = 100.f;
+	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 
 	SetupAudios();
 	SetupMontages();
@@ -132,7 +140,7 @@ void AZombie::Tick(float DeltaTime)
 			/* Reset */
 			AIController->SetTargetEnemy(nullptr);
 			CurrentZombieBehavior = EZombieBehavior::Patrolling;
-			GetCharacterMovement()->MaxWalkSpeed = 100.f;
+			GetCharacterMovement()->MaxWalkSpeed = 600.f;
 			/* Stop playing the hunting sound */
 			BroadcastUpdateAudioLoop(false);
 		}
@@ -426,6 +434,41 @@ void AZombie::OnHearNoise(APawn* PawnInstigator, const FVector& Location, float 
 	{
 		AIController->SetTargetEnemy(PawnInstigator);
 	}
+}
+
+bool AZombie::FindNearbyWall()
+{
+	FVector ActorLocation = GetActorLocation();
+
+	TArray<AActor*> OverlappingActors;
+	SphereComponent->GetOverlappingActors(OverlappingActors);
+
+	ABuildable* NearestWall = nullptr;
+	float NearestDistanceSquared = TNumericLimits<float>::Max(); // En yakýn mesafeyi baþlatýyoruz (sýfýrdan büyük bir deðerle)
+
+	for (AActor* Actor : OverlappingActors)
+	{
+		// ABuildable türünde olup olmadýðýný kontrol ediyoruz
+		ABuildable* Buildable = Cast<ABuildable>(Actor);
+		if (Buildable)
+		{
+			float DistanceSquared = FVector::DistSquared(ActorLocation, Buildable->GetActorLocation());
+			if (DistanceSquared < NearestDistanceSquared)
+			{
+				NearestDistanceSquared = DistanceSquared;
+				NearestWall = Buildable;
+			}
+		}
+	}
+
+	AZombieAIController* AIController = Cast<AZombieAIController>(GetController());
+	if (AIController && NearestWall)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 15, FColor::Yellow, TEXT("Wall Found!"));
+		AIController->SetTargetWall(NearestWall);
+		return true;
+	}
+	return false;
 }
 
 void AZombie::SetupAudios()
