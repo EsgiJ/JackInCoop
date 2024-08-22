@@ -27,6 +27,7 @@ AZombie::AZombie()
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	HealthComponent->SetDefaultHealth(100.f);
+	HealthComponent->TeamNum = 255;
 	
 	PawnSensingComp = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSeningComponent"));
 	PawnSensingComp->SetPeripheralVisionAngle(60.f);
@@ -190,6 +191,10 @@ void AZombie::OnHealthChanged(UHealthComponent* HealthComp, float Health, float 
 void AZombie::OnAttackOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	if (Cast<ABuildable>(OtherActor))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Black, TEXT("Overlapped with abuildable"));
+	}
 	if (OtherActor && OtherActor != this)
 	{
 		UGameplayStatics::ApplyDamage(OtherActor, AttackDamage, GetController(), this, UDamageType::StaticClass());

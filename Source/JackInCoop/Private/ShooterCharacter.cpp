@@ -43,6 +43,7 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	/* Create health component */
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("Health Component"));
 	HealthComponent->SetDefaultHealth(200.f);
+	HealthComponent->TeamNum = 0;
 
 	/* Create camera component */
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));

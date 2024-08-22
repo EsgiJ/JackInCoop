@@ -29,9 +29,6 @@ ABuildable::ABuildable()
 	CollisionVolume->SetCollisionProfileName(TEXT("OverlapAll"));
 	CollisionVolume->SetGenerateOverlapEvents(true);
 
-	CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &ABuildable::OnCollisionBeginOverlap);
-	CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &ABuildable::OnCollisionEndOverlap);
-
 	DefautHealth = 100;
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
@@ -39,6 +36,7 @@ ABuildable::ABuildable()
 
 	GridSize = 20.f;
 	bCanBuild = true;
+	bDied = false;
 }
 
 void ABuildable::Build()
@@ -61,9 +59,10 @@ void ABuildable::OnHealthChanged(UHealthComponent* HealthComp, float Health, flo
 	if (Health <= 0.0f)
 	{
 		bDied = true;
-
 		CollisionVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Destroy();
 	}
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Black, TEXT("HealthChanged"));
 }
 
 FVector ABuildable::GetCollisionVolumeSize() const
@@ -111,7 +110,16 @@ void ABuildable::OnCollisionEndOverlap(UPrimitiveComponent* OverlappedComp, AAct
 void ABuildable::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	if (CollisionVolume)
+	{
+		CollisionVolume->OnComponentBeginOverlap.AddDynamic(this, &ABuildable::OnCollisionBeginOverlap);
+		CollisionVolume->OnComponentEndOverlap.AddDynamic(this, &ABuildable::OnCollisionEndOverlap);
+	}
+
+	if (HealthComponent)
+	{
+		HealthComponent->OnHealthChanged.AddDynamic(this, &ABuildable::OnHealthChanged);
+	}
 }
 
 // Called every frame
