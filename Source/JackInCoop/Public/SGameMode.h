@@ -18,14 +18,14 @@ class JACKINCOOP_API ASGameMode : public AGameModeBase
 	GENERATED_BODY()
 
 protected:
+	FTimerHandle TimerHandle_Counter;
 	FTimerHandle TimerHandle_BotSpawner;
-
 	FTimerHandle TimerHandle_NextWaveStart;
 	
 	// Bots to spawn in current wave
 	int32 NrOfBotsToSpawn;
-
 	int32 WaveCount;
+	int32 WaveDuration;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameMode")
 	float TimeBetweenWaves;
@@ -49,11 +49,15 @@ protected:
 
 	void CheckAnyPlayerAlive();
 
+	bool IsAnyBotAlive();
+
 	void GameOver();
 
 	void SetWaveState(EWaveState NewState);
 
 	void RestartDeadPlayers();
+
+	void ClearCounter();
 	
 public:
 	ASGameMode();
@@ -62,6 +66,8 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	UFUNCTION(BlueprintCallable)
+	int32 GetElapsedCounterTime();
 	UPROPERTY(BlueprintAssignable, Category = "GameMode")
 	FOnActorKilled OnActorKilled;
 };

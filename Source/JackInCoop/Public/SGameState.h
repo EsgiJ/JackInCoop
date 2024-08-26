@@ -36,4 +36,7 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_WaveState, Category = "GameState")
 	EWaveState WaveState;
+
+	UFUNCTION(BlueprintCallable)
+	EWaveState GetCurrentWaveState();
 };

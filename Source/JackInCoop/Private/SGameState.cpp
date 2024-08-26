@@ -20,6 +20,11 @@ void ASGameState::SetWaveState(EWaveState NewState)
 	}
 }
 
+EWaveState ASGameState::GetCurrentWaveState()
+{
+	return WaveState;
+}
+
 /* Replicate object for networking*/
 void ASGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {

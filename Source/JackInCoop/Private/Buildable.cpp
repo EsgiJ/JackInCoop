@@ -29,7 +29,7 @@ ABuildable::ABuildable()
 	CollisionVolume->SetCollisionProfileName(TEXT("OverlapAll"));
 	CollisionVolume->SetGenerateOverlapEvents(true);
 
-	DefautHealth = 100;
+	DefautHealth = 500;
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	HealthComponent->SetDefaultHealth(DefautHealth);

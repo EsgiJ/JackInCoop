@@ -55,9 +55,9 @@ struct FWeaponData
 
 	FWeaponData()
 	{
-		MaxAmmo = 100;
-		AmmoPerClip = 20;
-		InitialClips = 4;
+		MaxAmmo = 500;
+		AmmoPerClip = 100;
+		InitialClips = 5;
 		RateOfFire = 600;
 		TimeBetweenShots = 60 / RateOfFire;
 	}
@@ -207,7 +207,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FX")
 	UParticleSystem* TracerEffect;
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* SOUND */
 

@@ -26,7 +26,7 @@ AZombie::AZombie()
 	PrimaryActorTick.bCanEverTick = true;
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
-	HealthComponent->SetDefaultHealth(100.f);
+	HealthComponent->SetDefaultHealth(50.f);
 	HealthComponent->TeamNum = 255;
 	
 	PawnSensingComp = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSeningComponent"));

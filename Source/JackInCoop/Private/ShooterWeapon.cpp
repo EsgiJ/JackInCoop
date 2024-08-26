@@ -59,9 +59,11 @@ void AShooterWeapon::PostInitializeComponents()
 		CurrentAmmo = WeaponConfig.AmmoPerClip * WeaponConfig.InitialClips;
 	}
 
-	SpotLightComp->AddLocalRotation(FRotator(0,90,0));
+//	SpotLightComp->AddLocalRotation(FRotator(0,90,0));
 	SpotLightComp->SetIntensity(20000.f);
 	SpotLightComp->SetVisibility(false);
+	SpotLightComp->AttenuationRadius = 3000.f;
+	SpotLightComp->OuterConeAngle = 20.f;
 }
 
 void AShooterWeapon::BeginPlay()
@@ -424,7 +426,8 @@ float AShooterWeapon::SetBulletSpread(float NewBulletSpread)
 
 void AShooterWeapon::GrantAmmo()
 {
-	CurrentAmmo = WeaponConfig.MaxAmmo - CurrentAmmo;
+	StartReload();
+	CurrentAmmo += WeaponConfig.MaxAmmo - CurrentAmmo;
 }
 
 EWeaponState AShooterWeapon::GetCurrentState() const

@@ -11,8 +11,8 @@
 
 ASGameMode::ASGameMode()
 {
-	TimeBetweenWaves = 2.f;
-
+	TimeBetweenWaves = 60.f;
+	WaveDuration = 300.f;
 	GameStateClass = ASGameState::StaticClass();
 	PlayerStateClass = ASPlayerState::StaticClass();
 	
@@ -32,8 +32,10 @@ void ASGameMode::SetWaveState(EWaveState NewState)
 void ASGameMode::StartWave()
 {
 	WaveCount++;
-	NrOfBotsToSpawn = 2 * WaveCount;
-	
+	NrOfBotsToSpawn = 20 * WaveCount;
+
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("Starting Counter"));
+	GetWorldTimerManager().SetTimer(TimerHandle_Counter, this, &ASGameMode::ClearCounter, WaveDuration, false, WaveDuration);
 	GetWorldTimerManager().SetTimer(TimerHandle_BotSpawner, this, &ASGameMode::SpawnBotTimerElapsed, 1.f, true, 0.f);
 	SetWaveState(EWaveState::WaveInProgress);
 }
@@ -46,7 +48,9 @@ void ASGameMode::EndWave()
 
 void ASGameMode::PrepareForNextWave()
 {
-	GetWorldTimerManager().SetTimer(TimerHandle_NextWaveStart, this, &ASGameMode::StartWave, TimeBetweenWaves, false, 0.f);
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("Starting Counter"));
+	GetWorldTimerManager().SetTimer(TimerHandle_Counter, this, &ASGameMode::ClearCounter, TimeBetweenWaves, false, TimeBetweenWaves);
+	GetWorldTimerManager().SetTimer(TimerHandle_NextWaveStart, this, &ASGameMode::StartWave, TimeBetweenWaves, false, TimeBetweenWaves);
 	SetWaveState(EWaveState::WaitingToStart);
 	RestartDeadPlayers();
 }
@@ -60,24 +64,7 @@ void ASGameMode::CheckWaveState()
 		return;
 	}
 	
-	bool bIsAnyBotAlive = false;
-	
-	for(TActorIterator<APawn>It(GetWorld()); It; ++It)
-	{
-		APawn* TestPawn = *It;
-		if (TestPawn == nullptr || TestPawn->IsPlayerControlled())
-		{
-			continue;
-		}
-		UHealthComponent* HealthComp = Cast<UHealthComponent>(TestPawn->GetComponentByClass(UHealthComponent::StaticClass()));
-		if (HealthComp && HealthComp->GetHealth() > 0.f)
-		{
-			bIsAnyBotAlive = true;
-			break;
-		}
-	}
-	
-	if (!bIsAnyBotAlive)
+	if (!IsAnyBotAlive())
 	{
 		SetWaveState(EWaveState::WaveComplete);
 		PrepareForNextWave();
@@ -104,6 +91,24 @@ void ASGameMode::CheckAnyPlayerAlive()
 	GameOver();
 }
 
+bool ASGameMode::IsAnyBotAlive()
+{
+	for (TActorIterator<APawn>It(GetWorld()); It; ++It)
+	{
+		APawn* TestPawn = *It;
+		if (TestPawn == nullptr || TestPawn->IsPlayerControlled())
+		{
+			continue;
+		}
+		UHealthComponent* HealthComp = Cast<UHealthComponent>(TestPawn->GetComponentByClass(UHealthComponent::StaticClass()));
+		if (HealthComp && HealthComp->GetHealth() > 0.f)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 void ASGameMode::RestartDeadPlayers()
 {
@@ -117,6 +122,12 @@ void ASGameMode::RestartDeadPlayers()
 	}
 }
 
+void ASGameMode::ClearCounter()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("Clearing Counter"));
+	GetWorldTimerManager().ClearTimer(TimerHandle_Counter);
+}
+
 void ASGameMode::GameOver()
 {
 	EndWave();
@@ -126,7 +137,6 @@ void ASGameMode::GameOver()
 void ASGameMode::StartPlay()
 {
 	Super::StartPlay();
-
 	PrepareForNextWave();
 }
 
@@ -136,6 +146,13 @@ void ASGameMode::Tick(float DeltaSeconds)
 
 	CheckWaveState();
 	CheckAnyPlayerAlive();
+
+	GEngine->AddOnScreenDebugMessage(-1, 1, FColor::Black, FString::Printf(TEXT("Elapsed Time %d"), GetElapsedCounterTime()));
+}
+
+int32 ASGameMode::GetElapsedCounterTime()
+{
+	return GetWorldTimerManager().GetTimerElapsed(TimerHandle_Counter);
 }
 
 void ASGameMode::SpawnBotTimerElapsed()
@@ -144,7 +161,7 @@ void ASGameMode::SpawnBotTimerElapsed()
 
 	NrOfBotsToSpawn--;
 
-	if (NrOfBotsToSpawn <= 0)
+	if (!IsAnyBotAlive() && TimerHandle_Counter.IsValid())
 	{
 		EndWave();
 	}

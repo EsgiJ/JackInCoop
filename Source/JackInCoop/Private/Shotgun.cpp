@@ -14,8 +14,10 @@ AShotgun::AShotgun()
 
 	MyPawn = GetPawnOwner();
 
-	WeaponConfig.MaxAmmo = 20;
-	WeaponConfig.AmmoPerClip = 4;
+	BaseDamage = 20.f;
+	WeaponConfig.MaxAmmo = 60;
+	WeaponConfig.InitialClips = 5;
+	WeaponConfig.AmmoPerClip = 12;
 	WeaponConfig.RateOfFire = 60;
 	WeaponConfig.TimeBetweenShots = 60 / WeaponConfig.RateOfFire;
 
