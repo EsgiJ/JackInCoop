@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "JackInCoop/JackInCoop.h"
 #include "ShooterWeapon.generated.h"
 
 class USpotLightComponent;
@@ -16,7 +17,8 @@ enum class EWeaponState: uint8
 		Firing,
 		Reloading,
 		Equipping,
-		Switching
+		Switching,
+		Sprinting
 };
 
 USTRUCT()
@@ -26,7 +28,7 @@ struct FHitScanTrace
 public:
 
 	UPROPERTY()
-	TEnumAsByte<EPhysicalSurface> SurfaceType;
+	TEnumAsByte<EPhysicalSurface> SurfaceType = SURFACE_FLESHDEFAULT;
 
 	UPROPERTY()
 	FVector_NetQuantize TraceTo;

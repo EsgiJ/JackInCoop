@@ -14,11 +14,11 @@ AShotgun::AShotgun()
 
 	MyPawn = GetPawnOwner();
 
-	BaseDamage = 20.f;
-	WeaponConfig.MaxAmmo = 60;
+	BaseDamage = 25.f;
+	WeaponConfig.MaxAmmo = 240;
 	WeaponConfig.InitialClips = 5;
-	WeaponConfig.AmmoPerClip = 12;
-	WeaponConfig.RateOfFire = 60;
+	WeaponConfig.AmmoPerClip = 24;
+	WeaponConfig.RateOfFire = 80;
 	WeaponConfig.TimeBetweenShots = 60 / WeaponConfig.RateOfFire;
 
 	SetReplicates(true);
@@ -46,15 +46,15 @@ void AShotgun::Fire()
 			{
 				ServerPlayAnimationMontage(IronsightsFireAnim);
 			}
-			/* Decrease ammo count */
-			UseAmmo();
 
 			/* Make noise while firing */
 			MyPawn->MakePawnNoise(2.f);
 
-			const int NumberOfShots = 5;
+			const int NumberOfShots = 4;
 			for (int i = 0; i < NumberOfShots; i++)
 			{
+				/* Decrease ammo count */
+				UseAmmo();
 				/* Calculate shot direction */
 				FVector ActorEyesLocation;
 				FRotator ActorEyesRotation;

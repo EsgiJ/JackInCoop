@@ -10,7 +10,6 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/AudioComponent.h"
 #include "Components/PawnNoiseEmitterComponent.h"
-#include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
@@ -26,7 +25,7 @@ AZombie::AZombie()
 	PrimaryActorTick.bCanEverTick = true;
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
-	HealthComponent->SetDefaultHealth(50.f);
+	HealthComponent->SetDefaultHealth(100.f);
 	HealthComponent->TeamNum = 255;
 	
 	PawnSensingComp = CreateDefaultSubobject<UPawnSensingComponent>(TEXT("PawnSeningComponent"));
@@ -45,22 +44,6 @@ AZombie::AZombie()
 	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SphereComponent->SetCollisionProfileName(TEXT("OverlapAll"));
 	SphereComponent->SetGenerateOverlapEvents(true);
-
-	LeftAttackCollisionBoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("LeftHandAttackCollisionBoxComponent"));
-	LeftAttackCollisionBoxComp->SetupAttachment(GetMesh(), FName("LeftHandCollisionSocket"));
-	LeftAttackCollisionBoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	LeftAttackCollisionBoxComp->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-	LeftAttackCollisionBoxComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	LeftAttackCollisionBoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	LeftAttackCollisionBoxComp->SetBoxExtent(FVector(32.f,32.f,32.f));
-
-	RightAttackCollisionBoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("RightHandAttackCollisionBoxComponent"));
-	RightAttackCollisionBoxComp->SetupAttachment(GetMesh(), FName("RightHandCollisionSocket"));
-	RightAttackCollisionBoxComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	RightAttackCollisionBoxComp->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-	RightAttackCollisionBoxComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	RightAttackCollisionBoxComp->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	RightAttackCollisionBoxComp->SetBoxExtent(FVector(32.f,32.f,32.f));
 	
 	AudioLoopComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("ZombieLoopedSoundComp"));
 	AudioLoopComponent->bAutoActivate = false;
@@ -69,7 +52,13 @@ AZombie::AZombie()
 
 	/* Noise emitter for both players and enemies. This keeps track of MakeNoise data and is used by the pawnsensing component in our SZombieCharacter class */
 	NoiseEmitterComp = CreateDefaultSubobject<UPawnNoiseEmitterComponent>(TEXT("NoiseEmitterComp"));
-	
+
+	RightArmTraceStartName = "RightArmTraceStart";
+	RightArmTraceEndName = "RightArmTraceEnd";
+
+	LeftArmTraceStartName = "LeftArmTraceStart";
+	LeftArmTraceEndName = "LeftArmTraceEnd";
+
 	/* These values are matched up to the CapsuleComponent above and are used to find navigation paths */
 	GetMovementComponent()->NavAgentProps.AgentRadius = 42;
 	GetMovementComponent()->NavAgentProps.AgentHeight = 192;
@@ -81,7 +70,7 @@ AZombie::AZombie()
 	NetUpdateFrequency = 66.0f;
 	MinNetUpdateFrequency = 33.0f;
 	CurrentZombieBehavior = EZombieBehavior::Patrolling;
-	AttackDamage = 20.f;
+	AttackDamage = 10.f;
 }
 
 // Called when the game starts or when spawned
@@ -103,15 +92,6 @@ void AZombie::BeginPlay()
 	{
 		PawnSensingComp->OnSeePawn.AddDynamic(this, &AZombie::OnSeePlayer);
 		PawnSensingComp->OnHearNoise.AddDynamic(this, &AZombie::OnHearNoise);
-	}
-
-	if (LeftAttackCollisionBoxComp)
-	{
-		LeftAttackCollisionBoxComp->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlap);
-	}
-	if (RightAttackCollisionBoxComp)
-	{
-		RightAttackCollisionBoxComp->OnComponentBeginOverlap.AddDynamic(this, &AZombie::OnAttackOverlap);
 	}
 }
 
@@ -188,15 +168,6 @@ void AZombie::OnHealthChanged(UHealthComponent* HealthComp, float Health, float 
 	}
 }
 
-void AZombie::OnAttackOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (OtherActor && OtherActor != this)
-	{
-		UGameplayStatics::ApplyDamage(OtherActor, AttackDamage, GetController(), this, UDamageType::StaticClass());
-	}
-}
-
 void AZombie::AttackTarget()
 {
 	UAnimMontage* AttackAnimationToPlay = nullptr;
@@ -237,7 +208,8 @@ void AZombie::AttackTarget()
 				AttackSoundToPlay = NormalAttackSounds[RandomIndex];
 			}
 		}
-		TimerDel.BindUFunction(this, FName("ActivateAttackCollision"), RightAttackCollisionBoxComp);
+		ArmTraceStartName = RightArmTraceStartName;
+		ArmTraceEndName = RightArmTraceEndName;
 	}
 	else
 	{
@@ -272,7 +244,8 @@ void AZombie::AttackTarget()
 				AttackSoundToPlay = NormalAttackSounds[RandomIndex];
 			}
 		}
-		TimerDel.BindUFunction(this, FName("ActivateAttackCollision"), LeftAttackCollisionBoxComp);
+		ArmTraceStartName = LeftArmTraceStartName;
+		ArmTraceEndName = LeftArmTraceEndName;
 	}
 
 	AZombieAIController* AIController = Cast<AZombieAIController>(GetController());
@@ -289,31 +262,42 @@ void AZombie::AttackTarget()
 	}
 
 	PlayAnimMontage(AttackAnimationToPlay, 1.5f);
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle_DeactivateCollision, TimerDel, AttackAnimationToPlay->GetPlayLength()/2, false);
-	if (RandomHand == 0)
-	{
-		DeactivateAttackCollision(RightAttackCollisionBoxComp);
-	}
-	else
-	{
-		DeactivateAttackCollision(LeftAttackCollisionBoxComp);
-	}
+
+	GetWorldTimerManager().SetTimer(TimerHandle_StartLineTrace, this, &AZombie::StartLineTrace, 0.1f, true);
+	GetWorldTimerManager().SetTimer(TimerHandle_StopLineTrace, this, &AZombie::StopLineTrace, AttackAnimationToPlay->GetPlayLength(), false);
 }
 
-void AZombie::ActivateAttackCollision(UBoxComponent* CurrentBoxComponent)
+void AZombie::StartLineTrace()
 {
-	if (!bHasDealtDamage)
+	/* Set query params */
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+	//QueryParams.bTraceComplex = true;
+	QueryParams.bReturnPhysicalMaterial = true;
+
+	FHitResult HitResult;
+	EPhysicalSurface SurfaceType = SurfaceType_Default;
+	/* Check whether hit result is null or not*/
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, GetMesh()->GetSocketLocation(ArmTraceStartName),
+		GetMesh()->GetSocketLocation(ArmTraceEndName), COLLISION_WEAPON, QueryParams))
 	{
-		CurrentBoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		bHasDealtDamage = true;
+		AActor* HitActor = HitResult.GetActor();
+
+		//Determine surface type
+		SurfaceType = UPhysicalMaterial::DetermineSurfaceType(HitResult.PhysMaterial.Get());
+		if (HitActor)
+		{
+			UGameplayStatics::ApplyDamage(HitActor, AttackDamage, GetController(), this, UDamageType::StaticClass());
+		}
 	}
+	
 }
 
-void AZombie::DeactivateAttackCollision(UBoxComponent* CurrentBoxComponent)
+void AZombie::StopLineTrace()
 {
-	CurrentBoxComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	bHasDealtDamage = false; // Reset the flag for a new attack
+	GetWorldTimerManager().ClearTimer(TimerHandle_StartLineTrace);
 }
+
 
 void AZombie::SetupMontages()
 {

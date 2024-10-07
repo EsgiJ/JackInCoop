@@ -11,7 +11,7 @@
 
 ASGameMode::ASGameMode()
 {
-	TimeBetweenWaves = 60.f;
+	TimeBetweenWaves = 15.f;
 	WaveDuration = 300.f;
 	GameStateClass = ASGameState::StaticClass();
 	PlayerStateClass = ASPlayerState::StaticClass();
@@ -31,10 +31,21 @@ void ASGameMode::SetWaveState(EWaveState NewState)
 	}
 }
 
+void ASGameMode::SetWaveCount(int32 NewWaveCount)
+{
+	ASGameState* GS = GetGameState<ASGameState>();
+	if (ensureAlways(GS))
+	{
+		GS->SetWaveCount(NewWaveCount);
+	}
+}
+
 void ASGameMode::StartWave()
 {
 	WaveCount++;
-	NrOfBotsToSpawn = 100 * WaveCount;
+	SetWaveCount(WaveCount);
+
+	NrOfBotsToSpawn = 50 * WaveCount;
 
 	GetWorldTimerManager().SetTimer(TimerHandle_Counter, this, &ASGameMode::ClearCounter, WaveDuration, false, WaveDuration);
 	GetWorldTimerManager().SetTimer(TimerHandle_BotSpawner, this, &ASGameMode::SpawnBotTimerElapsed, 1.f, true, 0.f);
@@ -149,7 +160,13 @@ void ASGameMode::Tick(float DeltaSeconds)
 
 int32 ASGameMode::GetElapsedCounterTime()
 {
-	return GetWorldTimerManager().GetTimerElapsed(TimerHandle_Counter);
+	int32 ElapsedCounterTime = GetWorldTimerManager().GetTimerElapsed(TimerHandle_Counter);
+	ASGameState* GS = GetGameState<ASGameState>();
+	if (ensureAlways(GS))
+	{
+		GS->SetElapsedCounterTime(ElapsedCounterTime);
+	}
+	return ElapsedCounterTime;
 }
 
 void ASGameMode::SpawnBotTimerElapsed()

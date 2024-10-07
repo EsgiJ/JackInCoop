@@ -23,8 +23,11 @@ protected:
 	FTimerHandle TimerHandle_NextWaveStart;
 	
 	// Bots to spawn in current wave
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameMode")
 	int32 NrOfBotsToSpawn;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameMode")
 	int32 WaveCount;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameMode")
 	int32 WaveDuration;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameMode")
@@ -54,6 +57,8 @@ protected:
 	void GameOver();
 
 	void SetWaveState(EWaveState NewState);
+
+	void SetWaveCount(int32 NewWaveCount);
 
 	void RestartDeadPlayers();
 

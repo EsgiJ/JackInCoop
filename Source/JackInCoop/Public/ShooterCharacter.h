@@ -65,6 +65,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* ReloadAction;
 
+	/* Sprint Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SprintAction;
+
+
 	/* Switch To Primary Weapon Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SwitchToPrimaryWeaponAction;
@@ -215,6 +220,8 @@ protected:
 
 	float LastMakeNoiseTime;
 
+	float SprintWalkSpeed = 600.f;
+	float NormalWalkSpeed = 450.f;
 
 public:
 	// Sets default values for this character's properties
@@ -239,7 +246,11 @@ protected:
 	/* INPUT METHODS */
 
 	void FlashlightOnOff();
-	
+
+	/* Sprints Inputs */
+	void StartSprint();
+	void EndSprint();
+
 	/* Move Input */
 	void Move(const FInputActionValue& Value);
 
@@ -270,6 +281,7 @@ protected:
 	/* Switch Weapon | Server */
 	UFUNCTION()
 	void SwitchWeapon(int32 WeaponIndex);
+	bool CanSwitchWeapon();
 	UFUNCTION()
 	void FinishWeaponSwitch(int32 WeaponIndex);
 	

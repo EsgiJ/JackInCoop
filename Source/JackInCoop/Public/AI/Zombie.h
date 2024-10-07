@@ -64,12 +64,6 @@ protected:
 	UPawnNoiseEmitterComponent* NoiseEmitterComp;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UBoxComponent* LeftAttackCollisionBoxComp;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UBoxComponent* RightAttackCollisionBoxComp;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USphereComponent* SphereComponent;
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* HEALTH */
@@ -89,16 +83,23 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/* ATTACK */
 	float AttackDamage;
-	FTimerHandle TimerHandle_DeactivateCollision;
 	bool bHasDealtDamage = false;
-	UFUNCTION()
-	void ActivateAttackCollision(UBoxComponent* CurrentBoxComponent);
-	UFUNCTION()
-	void DeactivateAttackCollision(UBoxComponent* CurrentBoxComponent);
 
-	UFUNCTION()
-	void OnAttackOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	FTimerHandle TimerHandle_StartLineTrace;
+	FTimerHandle TimerHandle_StopLineTrace;
 
+
+	FName RightArmTraceStartName;
+	FName RightArmTraceEndName;
+
+	FName LeftArmTraceStartName;
+	FName LeftArmTraceEndName;
+
+	FName ArmTraceStartName;
+	FName ArmTraceEndName;
+
+	void StartLineTrace();
+	void StopLineTrace();
 	UFUNCTION()
 	void OnSeePlayer(APawn* Pawn);
 	

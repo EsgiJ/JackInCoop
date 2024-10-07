@@ -26,17 +26,35 @@ class JACKINCOOP_API ASGameState : public AGameStateBase
 	GENERATED_BODY()
 protected:
 	UFUNCTION()
-	void OnRep_WaveState(EWaveState OldState);
+	void OnRep_WaveState(const EWaveState OldState);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "GameState")
 	void WaveStateChanged(EWaveState NewState, EWaveState OldState);
 
-public:
-	void SetWaveState(EWaveState NewState);
-	
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_WaveState, Category = "GameState")
 	EWaveState WaveState;
 
+public:
+
 	UFUNCTION(BlueprintCallable)
 	EWaveState GetCurrentWaveState();
+
+	void SetWaveState(EWaveState NewState);
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetElapsedCounterTime();
+
+	void SetElapsedCounterTime(int32 GameModeElapsedCounterTime);
+
+	UFUNCTION(BlueprintCallable)
+	int32 GetWaveCount();
+
+	void SetWaveCount(int32 NewWaveCount);
+	UPROPERTY(Replicated)
+	int32 ElapsedCounterTime;
+	UPROPERTY(Replicated)
+	int32 WaveCount;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	USoundBase* SirenSound;
 };

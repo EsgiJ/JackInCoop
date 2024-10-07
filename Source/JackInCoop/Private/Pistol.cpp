@@ -8,10 +8,10 @@ APistol::APistol()
     MyPawn = GetPawnOwner();
 
     BaseDamage = 10.f;
-    WeaponConfig.MaxAmmo = 100;
+    WeaponConfig.MaxAmmo = 200;
     WeaponConfig.InitialClips = 5;
-    WeaponConfig.AmmoPerClip = 20;
-    WeaponConfig.RateOfFire = 120.f;
+    WeaponConfig.AmmoPerClip = 40;
+    WeaponConfig.RateOfFire = 180;
     WeaponConfig.TimeBetweenShots = WeaponConfig.TimeBetweenShots = 60 / WeaponConfig.RateOfFire;
 
     SetReplicates(true);

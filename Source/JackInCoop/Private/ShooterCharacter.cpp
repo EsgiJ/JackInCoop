@@ -60,6 +60,8 @@ AShooterCharacter::AShooterCharacter(): ShooterMappingContext(nullptr), MoveActi
 	/* Set interp speed when switching from DefaultFOV to ZoomedFOV*/
 	ZoomInterpSpeed = 20.0f;
 
+	GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
+
 	/* Socket name to attach the weapon */
 	PrimaryWeaponAttachSocketName = "PrimaryWeaponSocket";
 	SecondaryWeaponAttachSocketName = "SecondaryWeaponSocket";
@@ -249,6 +251,10 @@ void AShooterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 		EnhancedInputComponent->BindAction(OpenSwitchWeaponWheel, ETriggerEvent::Started, this, &AShooterCharacter::OpenSwtichWeaponWheel);
 		EnhancedInputComponent->BindAction(OpenSwitchWeaponWheel, ETriggerEvent::Completed, this, &AShooterCharacter::CloseSwitchWeaponWheel);
+
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &AShooterCharacter::StartSprint);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AShooterCharacter::EndSprint);
+
 	}
 }
 
@@ -349,6 +355,19 @@ FVector AShooterCharacter::GetPawnViewLocation() const
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /* INPUT */
 
+
+void AShooterCharacter::StartSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = SprintWalkSpeed;
+	CurrentWeapon->SetCurrentState(EWeaponState::Sprinting);
+}
+
+void AShooterCharacter::EndSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
+	CurrentWeapon->SetCurrentState(EWeaponState::Idle);
+}
+
 void AShooterCharacter::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
@@ -389,20 +408,29 @@ void AShooterCharacter::EndCrouch(const FInputActionValue& Value)
 
 void AShooterCharacter::SwitchToPistolWeapon()
 {
-	SwitchWeapon(0);
-	CurrentWeaponType = EWeaponType::Pistol;
+	if (CanSwitchWeapon())
+	{
+		SwitchWeapon(0);
+		CurrentWeaponType = EWeaponType::Pistol;
+	}
 }
 
 void AShooterCharacter::SwitchToPrimaryWeapon()
 {
-	SwitchWeapon(1);
-	CurrentWeaponType = EWeaponType::Rifle;
+	if (CanSwitchWeapon())
+	{
+		SwitchWeapon(1);
+		CurrentWeaponType = EWeaponType::Rifle;
+	}
 }
 
 void AShooterCharacter::SwitchToSecondaryWeapon()
 {
-	SwitchWeapon(2);
-	CurrentWeaponType = EWeaponType::Shotgun;
+	if (CanSwitchWeapon())
+	{
+		SwitchWeapon(2);
+		CurrentWeaponType = EWeaponType::Shotgun;
+	}
 }
 
 void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
@@ -430,6 +458,19 @@ void AShooterCharacter::SwitchWeapon(int32 WeaponIndex)
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Invalid weapon index: %d"), WeaponIndex);
+	}
+}
+
+bool AShooterCharacter::CanSwitchWeapon()
+{
+	bool bCanSwitchWeapon = CurrentWeapon->GetCurrentState() == EWeaponState::Idle;
+	if (bCanSwitchWeapon)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 
